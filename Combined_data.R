@@ -1,13 +1,16 @@
 library(stringr)
 library(sqldf)
 library(dplyr)
+library("lubridate")
+library("zoo")
+library("dataRetrieval")
 watershed_precip <-read.csv("knb-lter-hbr-4/dailyWatershedPrecip1956-2024.csv")
 watershed_flow <- read.csv("knb-lter-hbr-5/HBEF_DailyStreamflow_1956-2023.csv")
 
 
 watershed_precip <- watershed_precip |> mutate_at("watershed", str_replace, "W", "")
 
-Combined_data <- sqldf(
+combined_data <- sqldf(
   "select a.DATE, a.watershed as watershed, 
   A.precip as precip,
   b.Streamflow, b.Flag
@@ -20,3 +23,7 @@ Combined_data <- sqldf(
   order by a.DATE
   "
 )
+combined_data[,c('yr', 'mo', 'da', 'wk')] <- cbind(year(as.Date(combined_data$DATE)),
+                                                 month(as.Date(combined_data$DATE)),
+                                                 day(as.Date(combined_data$DATE)),
+                                                 week(as.Date(combined_data$DATE)))
