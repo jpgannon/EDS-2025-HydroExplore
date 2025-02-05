@@ -1,0 +1,22 @@
+library(stringr)
+library(sqldf)
+library(dplyr)
+watershed_precip <-read.csv("knb-lter-hbr-4/dailyWatershedPrecip1956-2024.csv")
+watershed_flow <- read.csv("knb-lter-hbr-5/HBEF_DailyStreamflow_1956-2023.csv")
+
+
+watershed_precip <- watershed_precip |> mutate_at("watershed", str_replace, "W", "")
+
+Combined_data <- sqldf(
+  "select a.DATE, a.watershed as watershed, 
+  A.precip as precip,
+  b.Streamflow, b.Flag
+  from watershed_precip as a
+  left outer join watershed_flow as b 
+  on (
+    a.watershed = B.WS
+    and a.DATE = b.DATE
+  )
+  order by a.DATE
+  "
+)
