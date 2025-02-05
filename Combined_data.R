@@ -11,9 +11,9 @@ watershed_flow <- read.csv("knb-lter-hbr-5/HBEF_DailyStreamflow_1956-2023.csv")
 watershed_precip <- watershed_precip |> mutate_at("watershed", str_replace, "W", "")
 
 combined_data <- sqldf(
-  "select a.DATE, a.watershed as watershed, 
+  "select a.DATE obs_date, a.watershed as watershed, 
   A.precip as precip,
-  b.Streamflow, b.Flag
+  b.Streamflow as streamflow, b.Flag as flag
   from watershed_precip as a
   left outer join watershed_flow as b 
   on (
@@ -23,7 +23,7 @@ combined_data <- sqldf(
   order by a.DATE
   "
 )
-combined_data[,c('yr', 'mo', 'da', 'wk')] <- cbind(year(as.Date(combined_data$DATE)),
-                                                 month(as.Date(combined_data$DATE)),
-                                                 day(as.Date(combined_data$DATE)),
-                                                 week(as.Date(combined_data$DATE)))
+combined_data[,c('yr', 'mo', 'da', 'wk')] <- cbind(year(as.Date(combined_data$obs_date)),
+                                                 month(as.Date(combined_data$obs_date)),
+                                                 day(as.Date(combined_data$obs_date)),
+                                                 week(as.Date(combined_data$obs_date)))
