@@ -5,6 +5,8 @@ library("lubridate")
 library("zoo")
 library("dataRetrieval")
 library("grwat")
+library("ggplot2")
+library('xts')
 
 #Read in our combined data
 combined_data <- read.csv("combined_precip_data.csv")
@@ -70,3 +72,32 @@ aligned_plots <- align_plots(p1, p2, align = "hv", axis = "tblr")
 out <- ggdraw(aligned_plots[[1]]) + draw_plot(aligned_plots[[2]])
 out
 
+
+
+
+
+select_data |> ggplot(aes(x=as.Date(obs_date),y=precip)) +geom_line()
+
+
+ggplot(select_data)+
+  geom_line(aes(as.Date(obs_date), precip, color = "Precip")) + geom_line(aes(as.Date(obs_date),y=baseflow$bt, color = "Baseflow"))
+
+
+Month_data <-
+
+ggplot(select_data) + 
+  geom_col(aes(x=as.Date(obs_date), y= precip, color ="Precip")) + 
+  geom_line(aes(x=as.Date(obs_date), y =baseflow$bt, color ="Baseflow")) + 
+  theme_classic() +
+  labs(title = "Precip Compared to Baseflow", x = "Date", y = "mm/day")
+
+watersheds <- c(1)
+
+filtered_data <- combined_data |> filter(watershed %in% watersheds)
+
+
+flow_xts <- xts(combined_data$streamflow,
+                       order.by=as.Date(combined_data$obs_date))
+rollingavg <- rollmean(flow_xts, k = 7, aling = "right", fill = NA)
+
+ggplot(rollingavg)
