@@ -1,6 +1,6 @@
-library(stringr)
-library(sqldf)
-library(dplyr)
+library("stringr")
+library("sqldf")
+library("dplyr")
 library("lubridate")
 library("zoo")
 library("dataRetrieval")
@@ -20,6 +20,8 @@ combined_data <- sqldf(
     a.watershed = B.WS
     and a.DATE = b.DATE
   )
+  where b.streamflow is not Null
+  and A.precip is not NULL
   order by a.DATE
   "
 )
@@ -27,3 +29,12 @@ combined_data[,c('yr', 'mo', 'da', 'wk')] <- cbind(year(as.Date(combined_data$ob
                                                  month(as.Date(combined_data$obs_date)),
                                                  day(as.Date(combined_data$obs_date)),
                                                  week(as.Date(combined_data$obs_date)))
+
+write.csv(combined_data, "combined_precip_data.csv")
+
+
+for (i in 1:9){
+  watershed_data <- combined_data |> filter(watershed == i)
+  write.csv(watershed_data, paste0(i, "watershed.csv"))
+}
+  
