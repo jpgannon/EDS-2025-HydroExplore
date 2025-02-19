@@ -59,7 +59,7 @@ ui <- navbarPage("Hubbard Brook Watershed Data Analysis", theme = shinytheme("ce
                  tabPanel("See Tables",
                           sidebarLayout(
                             sidebarPanel(
-                              fileInput("uploadFile", "Upload Your Dataset (CSV)", accept = ".csv"),
+                              #fileInput("uploadFile", "Upload Your Dataset (CSV)", accept = ".csv"),
                               downloadButton("downloadData", "Download Current Data")
                             ),
                             mainPanel(
@@ -99,23 +99,22 @@ server <- function(input, output, session) {
                                                        month(as.Date(combined_data$obs_date)),
                                                        day(as.Date(combined_data$obs_date)),
                                                        week(as.Date(combined_data$obs_date)))
-    
-    write.csv(combined_data, "combined_precip_data.csv")
+  
   
       
       
-      return(df)
+      return(combined_data)
     }
   
-  
+  dataset <- dataset()
   
   # Display Data Summary
   output$dateRangeText <- renderText({ "2020–2025" })
   output$recordPeriod <- renderText({ "2020-2025" })
-  output$totalDays <- renderText({ "0" })
-  output$missingDays <- renderText({count(unique(dataset))})
-  output$avgDischarge <- renderText({ count(unique(filter(dataset, flag == "1")))})
-  output$medianDischarge <- renderText({ "0 mm" })
+  output$totalDays <- renderText({count(unique(dataset))})
+  output$FlaggedDays <- renderText({count(unique(filter(dataset, flag == "1")))})
+  output$avgDischarge <- renderText({mean(dataset$streamflow)})
+  output$medianDischarge <- renderText({median(dataset$streamflow)})
   
   # Plot Trends
   output$trendPlot <- renderPlotly({
