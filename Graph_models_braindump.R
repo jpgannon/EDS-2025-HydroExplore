@@ -7,6 +7,17 @@ library("dataRetrieval")
 library("grwat")
 library("ggplot2")
 library('xts')
+library('tidyverse')
+library('hrbrthemes') 
+library('socviz')
+library('geofacet')
+library('usmap')
+library('socviz')
+library('ggmap')
+library('cowplot')
+library('gridExtra')
+library('webshot2')
+library('kableExtra')
 
 #Read in our combined data
 combined_data <- read.csv("combined_precip_data.csv")
@@ -43,7 +54,7 @@ select_data <- percentage_data |> filter(Method == "lynehollick")
 
 p1 <- select_data |> ggplot() +
   geom_area(aes(as.Date(obs_date), streamflow), fill = 'steelblue',color = 'black') +
-  geom_area(aes(as.Date(obs_date), Qbase), fill = 'orangered') + 
+  geom_area(aes(as.Date(obs_date), baseflow$bt), fill = 'orangered') + 
   scale_y_continuous(position = "left",
                      limits = c(0, 150),
                      expand = c(0,0)) + 
@@ -101,3 +112,14 @@ flow_xts <- xts(combined_data$streamflow,
 rollingavg <- rollmean(flow_xts, k = 7, aling = "right", fill = NA)
 
 ggplot(rollingavg)
+
+rolling_averages <- select_data |> 
+  group_by(obs_date,watershed) |> 
+  transform(avg3 = rollmeanr(cbind(streamflow, precip), 3, fill = NA),
+            avg5 = rollmeanr(cbind(streamflow, precip), 5, fill = NA)) %>%
+  ungroup
+
+
+
+
+

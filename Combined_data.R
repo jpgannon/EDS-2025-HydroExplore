@@ -4,8 +4,9 @@ library("dplyr")
 library("lubridate")
 library("zoo")
 library("dataRetrieval")
-watershed_precip <-read.csv("knb-lter-hbr-4/dailyWatershedPrecip1956-2024.csv")
-watershed_flow <- read.csv("knb-lter-hbr-5/HBEF_DailyStreamflow_1956-2023.csv")
+library("RCurl")
+watershed_precip <-read.csv(url("https://raw.githubusercontent.com/jpgannon/EDS-2025-HydroExplore/refs/heads/main/dailyWatershedPrecip1956-2024.csv"))
+watershed_flow <- read.csv(url("https://raw.githubusercontent.com/jpgannon/EDS-2025-HydroExplore/refs/heads/main/HBEF_DailyStreamflow_1956-2023.csv"))
 
 
 watershed_precip <- watershed_precip |> mutate_at("watershed", str_replace, "W", "")
@@ -37,4 +38,3 @@ for (i in 1:9){
   watershed_data <- combined_data |> filter(watershed == i)
   write.csv(watershed_data, paste0(i, "watershed.csv"))
 }
-  
