@@ -1,5 +1,6 @@
 #install.packages("shiny")
 library(shiny)
+library(sqldf)
 library(tidyverse)
 #install.packages("shinythemes")
 library(shinythemes)
@@ -29,7 +30,7 @@ ui <- navbarPage("Hubbard Brook Watershed Data Analysis", theme = shinytheme("ce
                                 h4("Period of Record:"),
                                 verbatimTextOutput("recordPeriod"),
                                 h5("Total Days:"), verbatimTextOutput("totalDays"),
-                                h5("Total Missing Days:"), verbatimTextOutput("missingDays"),
+                                h5("Total Flagged Days:"), verbatimTextOutput("missingDays"),
                                 h5("Average Discharge:"), verbatimTextOutput("avgDischarge"),
                                 h5("Median Discharge:"), verbatimTextOutput("medianDischarge")
                               ),
@@ -55,7 +56,7 @@ ui <- navbarPage("Hubbard Brook Watershed Data Analysis", theme = shinytheme("ce
                  ),
                  
                  # 3. Add Data/See Tables Tab
-                 tabPanel("Add Data/See Tables",
+                 tabPanel("See Tables",
                           sidebarLayout(
                             sidebarPanel(
                               fileInput("uploadFile", "Upload Your Dataset (CSV)", accept = ".csv"),
@@ -68,24 +69,52 @@ ui <- navbarPage("Hubbard Brook Watershed Data Analysis", theme = shinytheme("ce
                  )
 )
 
+
 # Define Server
 server <- function(input, output, session) {
+  options(shiny.maxRequestSize=30*1024^2)
+  dataset <- {
+    watershed_precip <-read.csv(url("https://raw.githubusercontent.com/jpgannon/EDS-2025-HydroExplore/refs/heads/main/dailyWatershedPrecip1956-2024.csv"))
+    watershed_flow <- read.csv(url("https://raw.githubusercontent.com/jpgannon/EDS-2025-HydroExplore/refs/heads/main/HBEF_DailyStreamflow_1956-2023.csv"))
+    
+    
+    watershed_precip <- watershed_precip |> mutate_at("watershed", str_replace, "W", "")
+    
+    combined_data <- sqldf(
+      "select a.DATE obs_date, a.watershed as watershed, 
+  A.precip as precip,
+  b.Streamflow as streamflow, b.Flag as flag
+  from watershed_precip as a
+  left outer join watershed_flow as b 
+  on (
+    a.watershed = B.WS
+    and a.DATE = b.DATE
+  )
+  where b.streamflow is not Null
+  and A.precip is not NULL
+  order by a.DATE
+  "
+    )
+    combined_data[,c('yr', 'mo', 'da', 'wk')] <- cbind(year(as.Date(combined_data$obs_date)),
+                                                       month(as.Date(combined_data$obs_date)),
+                                                       day(as.Date(combined_data$obs_date)),
+                                                       week(as.Date(combined_data$obs_date)))
+    
+    write.csv(combined_data, "combined_precip_data.csv")
   
-  dataset <- reactive({
-    if (is.null(input$file)) {
-      read.csv("hubbard_brook_data.csv")  # Default dataset
-    } else {
-      req(input$file)
-      read.csv(input$file$datapath)
+      
+      
+      return(df)
     }
-  })
+  
+  
   
   # Display Data Summary
   output$dateRangeText <- renderText({ "2020–2025" })
   output$recordPeriod <- renderText({ "2020-2025" })
   output$totalDays <- renderText({ "0" })
-  output$missingDays <- renderText({ "0" })
-  output$avgDischarge <- renderText({ "0 mm" })
+  output$missingDays <- renderText({count(unique(dataset))})
+  output$avgDischarge <- renderText({ count(unique(filter(dataset, flag == "1")))})
   output$medianDischarge <- renderText({ "0 mm" })
   
   # Plot Trends
