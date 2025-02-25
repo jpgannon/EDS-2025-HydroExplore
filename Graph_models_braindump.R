@@ -94,11 +94,11 @@ ggplot(select_data)+
   geom_line(aes(as.Date(obs_date), precip, color = "Precip")) + geom_line(aes(as.Date(obs_date),y=baseflow$bt, color = "Baseflow"))
 
 
-Month_data <-
 
-ggplot(select_data) + 
+
+select_data |> group_by(obs_date) |> summarise(precip = sum(precip), streamflow = sum(streamflow), baseflow = sum(baseflow$bt)) |> ggplot() + 
   geom_col(aes(x=as.Date(obs_date), y= precip, color ="Precip")) + 
-  geom_line(aes(x=as.Date(obs_date), y =baseflow$bt, color ="Baseflow")) + 
+  geom_line(aes(x=as.Date(obs_date), y =baseflow, color ="Baseflow")) + 
   theme_classic() +
   labs(title = "Precip Compared to Baseflow", x = "Date", y = "mm/day")
 
@@ -111,15 +111,52 @@ flow_xts <- xts(combined_data$streamflow,
                        order.by=as.Date(combined_data$obs_date))
 rollingavg <- rollmean(flow_xts, k = 7, aling = "right", fill = NA)
 
-ggplot(rollingavg)
 
 rolling_averages <- select_data |> 
   group_by(obs_date,watershed) |> 
-  transform(avg3 = rollmeanr(cbind(streamflow, precip), 3, fill = NA),
-            avg5 = rollmeanr(cbind(streamflow, precip), 5, fill = NA)) %>%
+  transform(avg = rollmeanr(cbind(streamflow, precip), 3, fill = NA)) %>%
   ungroup
 
+#Month Graphs:
+colors <- c("Average Precipitation" = "steelblue", "Average Streamflow" = "orangered")
+select_data |> group_by(mo) |>  summarise(avgprecip = mean(precip), avgstreamflow = mean(streamflow)) |> 
+  ggplot() + 
+  geom_col(aes(x=mo,y = avgprecip, fill = "Average Precipitation")) +
+  geom_line(aes(x = mo, y = avgstreamflow, color = "Average Streamflow")) +
+  theme_classic()+
+  labs(title = "Average Precipitation and Average Streamflow by Month", 
+       y = "Average Flow and Precip (MM/Day)", 
+       x = "Month",
+       color = "legend") +
+  theme(axis.title.y.left = element_text(hjust = 0),
+        legend.position = "bottom",
+        legend.justification = c(0.25, 0.5),
+        legend.title = element_blank())+
+  scale_color_manual(values = colors)+
+  scale_fill_manual(values = colors) 
 
 
+#Rolling Averages:
+
+rolling_averages |> ggplot() + 
+  geom_col(aes(x=as.Date(obs_date), y = avg.precip, fill = "Average Precipitation"))+
+  geom_line(aes(x=as.Date(obs_date), y = avg.streamflow, color = 'Average Streamflow'))+
+  theme_classic()+
+  labs(title = "Average Precipitation and Average Streamflow by Month", 
+       y = "Rolling Average Flow and Precip (MM/Day)", 
+       x = "Date",
+       color = "legend") +
+  theme(axis.title.y.left = element_text(hjust = 0),
+        legend.position = "bottom",
+        legend.justification = c(0.25, 0.5),
+        legend.title = element_blank())+
+  scale_color_manual(values = colors)+
+  scale_fill_manual(values = colors) 
+  
+
+select_data |> group_by(watershed) |> ggplot() +
+  geom_line(aes(x=obs_date, y = precip, color = watershed))
+  
+  
 
 
