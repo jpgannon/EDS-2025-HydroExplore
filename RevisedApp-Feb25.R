@@ -93,8 +93,7 @@ ui <- navbarPage("Hubbard Brook Watershed Data Analysis", theme = shinytheme("ce
                               ),
                               mainPanel(
                                 plotlyOutput("precipplot"),
-                                plotlyOutput("trendPlot"),
-                                plotlyOutput("monthly_plot")
+                                plotlyOutput("trendPlot")
                               )
                             ),
                           )
@@ -103,7 +102,7 @@ ui <- navbarPage("Hubbard Brook Watershed Data Analysis", theme = shinytheme("ce
                  tabPanel("Trend Analysis",
                           sidebarLayout(
                             sidebarPanel(
-                              numericInput("rollingWindow", "Rolling Average (Days):", value = 1, min = 1, max = 180),
+                              numericInput("rollingWindow", "Rolling Average (Days):", value = 1, min = 1, max = 365),
                               actionButton("applyRolling", "Apply")
                             ),
                             mainPanel(plotOutput("rollingPlot"),
@@ -203,6 +202,11 @@ output$precipplot <- renderPlotly({
       geom_col(size = 1) +
       labs(title = paste(input$rollingWindow, "-Day Rolling Average"), x = "Date", y = "Streamflow (mm/day)") +
       theme_minimal()
+  })
+rolling_data <- eventReactive(input$applyRolling, {
+    aggregated_data() %>%
+      group_by(watershed) %>%
+      mutate(rolling_avg = zoo::rollmean(streamflow, k = input$rollingWindow, fill = NA, align = "right"))
   })
 output$monthly_plot <- renderPlot({
   df <- aggregated_data()
