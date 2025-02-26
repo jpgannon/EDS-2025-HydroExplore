@@ -93,7 +93,10 @@ ui <- navbarPage("Hubbard Brook Watershed Data Analysis", theme = shinytheme("ce
                                 h5("Average Discharge:"), verbatimTextOutput("avgDischarge"),
                                 h5("Median Discharge:"), verbatimTextOutput("medianDischarge")
                               ),
-                              mainPanel(plotlyOutput("trendPlot"))
+                              mainPanel(
+                                plotlyOutput("precipplot"),
+                                plotlyOutput("trendPlot")
+                              )
                             )
                           )
                  ),
