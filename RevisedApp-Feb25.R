@@ -79,7 +79,7 @@ ui <- navbarPage("Hubbard Brook Watershed Data Analysis", theme = shinytheme("ce
                             titlePanel(h3("Hubbard Brook Experimental Forest: Watershed Precipitation and Flow Trend Analysis", align = "center")),
                             sidebarLayout(
                               sidebarPanel(
-                                checkboxGroupInput("watersheds", "Choose Watersheds (1-9):", choices = as.character(1:9), selected = c("1", "2", "7", "9")),
+                                checkboxGroupInput("watersheds", "Choose Watersheds (1-9):", choices = as.character(1:9), selected = c("1")),
                                 dateRangeInput("dateRange", "Select Date Range:", start = "1956-01-01", end = "2025-12-31",
                                                min = "1956-01-01", max = "2025-12-31"),
                                 checkboxInput("addBaseflow", "Add Baseflow Line", value = FALSE),
@@ -99,14 +99,15 @@ ui <- navbarPage("Hubbard Brook Watershed Data Analysis", theme = shinytheme("ce
                           )
                  ),
 
-                 tabPanel("Trend Analysis",
+                 tabPanel("Temporal Analysis",
                           sidebarLayout(
                             sidebarPanel(
                               numericInput("rollingWindow", "Rolling Average (Days):", value = 1, min = 1, max = 365),
                               actionButton("applyRolling", "Apply")
                             ),
-                            mainPanel(plotOutput("rollingPlot"),
-                                      plotlyOutput("monthly_plot"))
+                            mainPanel(
+                              plotOutput("rollingPlot"),
+                              plotOutput("monthly_plot"))
                           )
                  ),
 
@@ -192,21 +193,19 @@ output$precipplot <- renderPlotly({
     ggplotly(p)
   })
 
-  output$rollingPlot <- renderPlot({
-    req(input$applyRolling)
-    df <- aggregated_data() %>%
-      group_by(watershed,yr) %>%
-      mutate(rolling_avg = zoo::rollmean(streamflow, k = input$rollingWindow, fill = NA, align = "right"))
-
-    ggplot(df, aes(x = as.Date(obs_date), y = rolling_avg, color = watershed)) +
-      geom_col(size = 1) +
-      labs(title = paste(input$rollingWindow, "-Day Rolling Average"), x = "Date", y = "Streamflow (mm/day)") +
-      theme_minimal()
-  })
-rolling_data <- eventReactive(input$applyRolling, {
+  rolling_data <- eventReactive(input$applyRolling, {
     aggregated_data() %>%
       group_by(watershed) %>%
       mutate(rolling_avg = zoo::rollmean(streamflow, k = input$rollingWindow, fill = NA, align = "right"))
+  })
+  
+  output$rollingPlot <- renderPlot({
+    df <- rolling_data()
+    
+    ggplot(df, aes(x = obs_date, y = rolling_avg, color = watershed)) +
+      geom_line(size = 1) +
+      labs(title = paste(input$rollingWindow, "-Day Rolling Average"), x = "Date", y = "Streamflow (mm/day)") +
+      theme_minimal()
   })
 output$monthly_plot <- renderPlot({
   df <- aggregated_data()
@@ -230,6 +229,7 @@ output$monthly_plot <- renderPlot({
     scale_color_manual(values = colors)+
     scale_fill_manual(values = colors) 
 })
+
   output$dataTable <- renderDT({
     datatable(aggregated_data(), options = list(pageLength = 10))
   })

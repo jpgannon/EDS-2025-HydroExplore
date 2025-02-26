@@ -22,7 +22,7 @@ library('gridExtra')
 library('webshot2')
 library('kableExtra')
 
-function(streamflow, filter_parameter=0.925, passes=3){
+BaseflowSeparation <- function(streamflow, filter_parameter=0.925, passes=3){
   suppressWarnings(Ends<-c(1,length(streamflow))*rep(1,(passes+1))) # Start and end values for the filter function
   suppressWarnings(AddToStart<-c(1,-1)*rep(1,passes))
   btP<-streamflow##Previous pass's baseflow approximation
