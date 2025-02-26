@@ -70,7 +70,7 @@ combined_data <- sqldf(
          wk = week(obs_date))
 
 
-combined_data$baseflow <- BaseflowSeparation(combined_data$streamflow)
+combined_data$baseflow <- BaseflowSeparation(combined_data$streamflow)$bt
 
 ui <- navbarPage("Hubbard Brook Watershed Data Analysis", theme = shinytheme("cerulean"),
 
@@ -187,7 +187,7 @@ output$precipplot <- renderPlotly({
 
     if (input$addBaseflow) {
     
-      p <- p + geom_line(aes(y = baseflow$qft, color = "Baseflow"), size = 1)
+      p <- p + geom_line(aes(y = baseflow, color = "Baseflow"), size = 1)
     }
 
     ggplotly(p)
