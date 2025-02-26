@@ -209,7 +209,7 @@ output$precipplot <- renderPlotly({
 
     ggplot(df, aes(x = obs_date, y = rolling_avg, color = watershed)) +
       geom_line(size = 1) +
-      labs(title = paste(input$rollingWindow, "-Day Rolling Average"), x = "Date", y = "Streamflow (mm/day)") +
+      labs(title = paste0(input$rollingWindow, "-Day Rolling Average"), x = "Date", y = "Streamflow (mm/day)") +
       theme_minimal()
   })
 output$monthlyGraph <- renderPlot({
