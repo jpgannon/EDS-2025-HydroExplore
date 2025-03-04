@@ -207,7 +207,7 @@ output$precipplot <- renderPlotly({
 
    rolling_data <- eventReactive(input$applyRolling, {
     aggregated_data() %>%
-      group_by(watershed) %>%
+      group_by(watershed, yr) %>%
       mutate(rolling_avg = zoo::rollmean(streamflow, k = input$rollingWindow, fill = NA, align = "right"))
   })
 
