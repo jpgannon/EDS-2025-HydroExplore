@@ -176,8 +176,8 @@ output$precipplot <- renderPlotly({
                     labels = c(0,25,50,100),
                     expand = c(0,0)) +
     scale_color_manual(values = c("sienna1")) +
-    labs(y = "Precipitation [mm/day]", x = "") +
-    theme_minimal() +
+    labs(y = "Precipitation (mm/day)", x = "") +
+    theme_minimal() #+
     theme(axis.title.y.right = element_text(hjust = 0),
           legend.position = "bottom",
           legend.justification = c(0.75, 0.5),
