@@ -149,6 +149,14 @@ server <- function(input, output, session) {
   output$recordPeriod <- renderText({
     paste(year(input$dateRange[1]), "to", year(input$dateRange[2]))
   })
+  output$downloadData <- downloadHandler(
+    filename = function() {
+      paste("Aggregated_data", ".csv", sep = "")
+    },
+    content = function(file){
+      write.csv(aggregated_data(),file, row.names = FALSE)
+    }
+  )
 
   output$totalDays <- renderText({ n_distinct(filtered_dataset()$obs_date) })
   output$missingDays <- renderText({ sum(filtered_dataset()$flag == 1, na.rm = TRUE) })
