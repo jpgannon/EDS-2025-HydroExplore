@@ -82,8 +82,8 @@ ui <- navbarPage("Hubbard Brook Watershed Data Analysis", theme = shinytheme("ce
                             sidebarLayout(
                               sidebarPanel(
                                 checkboxGroupInput("watersheds", "Choose Watersheds (1-9):", choices = as.character(1:9), selected = c("1")),
-                                dateRangeInput("dateRange", "Select Date Range:", start = "1956-01-01", end = "2025-12-31",
-                                               min = "1956-01-01", max = "2025-12-31"),
+                                dateRangeInput("dateRange", "Select Date Range:", start = "1956-01-01", end = "2023-12-31",
+                                               min = "1956-01-01", max = "2023-12-31"),
                                 checkboxInput("addBaseflow", "Add Baseflow Line", value = FALSE),
                                 hr(),
                                 h4("Selected Data Range:"), verbatimTextOutput("dateRangeText"),
@@ -185,7 +185,7 @@ output$precipplot <- renderPlotly({
       p <- ggplot(df, aes(x = obs_date)) +
       geom_col(aes(y = precip), fill = "lightblue", alpha = 0.6) +
       geom_line(aes(y = streamflow, color = watershed, group = watershed), size = 1) +
-      scale_y_continuous(name = "Precipitation (mm/day)", sec.axis = sec_axis(~ ., name = "Streamflow (mm/day)")) +
+      scale_y_continuous(name = "Streamflow (mm/day)", sec.axis = sec_axis(~ ., name = "Streamflow (mm/day)")) +
       theme_minimal() +
       labs(title = "Precipitation & Flow Trend Analysis", x = "Date") +
       scale_color_brewer(palette = "Set1")
@@ -213,18 +213,18 @@ output$precipplot <- renderPlotly({
       theme_minimal()
   })
 output$monthlyGraph <- renderPlot({
-    colors <- c("Average Precipitation" = "steelblue", "Average Streamflow" = "orangered")
+    colors <- c("Average Precipitation per day" = "steelblue", "Average Streamflow per day" = "orangered")
 
     df <- filtered_dataset() %>%
       group_by(mo) %>%
       summarise(avgprecip = mean(precip, na.rm = TRUE), avgstreamflow = mean(streamflow, na.rm = TRUE))
 
     ggplot(df) +
-      geom_col(aes(x = mo, y = avgprecip, fill = "Average Precipitation")) +
-      geom_line(aes(x = mo, y = avgstreamflow, color = "Average Streamflow")) +
+      geom_col(aes(x = mo, y = avgprecip, fill = "Average Precipitation per day")) +
+      geom_line(aes(x = mo, y = avgstreamflow, color = "Average Streamflow per day")) +
       theme_classic() +
       labs(title = "Average Precipitation and Average Streamflow by Month",
-           y = "Average Flow and Precip (MM/Day)",
+           y = "Average Flow and Precip (mm/Day)",
            x = "Month",
            color = "Legend") +
       theme(axis.title.y.left = element_text(hjust = 0),
