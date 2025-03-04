@@ -84,7 +84,7 @@ ui <- navbarPage("Hubbard Brook Watershed Data Analysis", theme = shinytheme("ce
                                                min = "1956-01-01", max = "2025-12-31"),
                                 checkboxInput("addBaseflow", "Add Baseflow Line", value = FALSE),
                                 hr(),
-                                h4("Selected Data Range:"), verbatimTextOutput("dateRangeText"),
+                                h4("Selected Date Range:"), verbatimTextOutput("dateRangeText"),
                                 h4("Period of Record:"), verbatimTextOutput("recordPeriod"),
                                 h5("Total Days:"), verbatimTextOutput("totalDays"),
                                 h5("Total Flagged Days:"), verbatimTextOutput("missingDays"),
