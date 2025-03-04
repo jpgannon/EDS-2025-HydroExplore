@@ -191,7 +191,6 @@ output$precipplot <- renderPlotly({
     }
 
       p <- ggplot(df, aes(x = obs_date)) +
-      geom_col(aes(y = precip), fill = "lightblue", alpha = 0.6) +
       geom_line(aes(y = streamflow, color = watershed, group = watershed), size = 1) +
       scale_y_continuous(name = "Streamflow (mm/day)", sec.axis = sec_axis(~ ., name = "Streamflow (mm/day)")) +
       theme_minimal() +
