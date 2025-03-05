@@ -49,6 +49,8 @@ BaseflowSeparation <- function(streamflow, filter_parameter=0.925, passes=3){
 
 watershed_precip <- read.csv(url("https://raw.githubusercontent.com/jpgannon/EDS-2025-HydroExplore/refs/heads/main/dailyWatershedPrecip1956-2024.csv"))
 watershed_flow <- read.csv(url("https://raw.githubusercontent.com/jpgannon/EDS-2025-HydroExplore/refs/heads/main/HBEF_DailyStreamflow_1956-2023.csv"))
+snow_data <- read.csv(url("https://raw.githubusercontent.com/jpgannon/EDS-2025-HydroExplore/refs/heads/main/HBEF_snowcourse_1956-2024.csv"))
+snow_info <- read.csv("https://raw.githubusercontent.com/jpgannon/EDS-2025-HydroExplore/refs/heads/main/snowcourse_info.csv")
 
 watershed_precip <- watershed_precip |> mutate(watershed = str_replace(watershed, "W", ""))
 
@@ -62,16 +64,47 @@ combined_data <- sqldf(
        WHERE b.streamflow IS NOT NULL
        AND A.precip IS NOT NULL
        ORDER BY a.DATE"
-) %>%
-  mutate(obs_date = as.Date(obs_date),
-         yr = year(obs_date),
-         mo = month(obs_date),
-         da = day(obs_date),
-         wk = week(obs_date))
+)
+combined_snow_data <- sqldf(
+  "select a.DATE obs_date, b.watershed watershed, 
+  a.winter winter,
+  a.Site Site, a.snow_depth snow_depth,
+  a.swe swe, a.frost_depth frost_depth, 
+  a.frost_pct frost_pct
+  from snow_data as a
+  left outer join snow_info as b 
+  on (
+    a.Site = B.snowcourseID
+  )
+  order by a.DATE
+  "
+)
+
+total_data <- sqldf(
+  "SELECT a.obs_date as obs_date, a.watershed,
+              a.precip as precip,
+              a.Streamflow as streamflow, a.Flag as flag,
+              b.winter winter, b.snow_depth snow_depth,
+              b.swe swe, b.frost_depth frost_depth,
+              b.frost_pct frost_pct, b.Site site
+       FROM combined_data as a
+       LEFT OUTER JOIN combined_snow_data as b
+       ON (
+       a.watershed = b.watershed AND a.obs_date = b.obs_date
+       )
+       WHERE a.streamflow IS NOT NULL
+       AND a.precip IS NOT NULL
+       ORDER BY a.obs_date"
+)
 
 
-combined_data$baseflow <- BaseflowSeparation(combined_data$streamflow)$bt
+total_data$baseflow <- BaseflowSeparation(total_data$streamflow)$bt
 
+
+total_data[,c('yr', 'mo', 'da', 'wk')] <- cbind(year(as.Date(total_data$obs_date)),
+                                                   month(as.Date(total_data$obs_date)),
+                                                   day(as.Date(total_data$obs_date)),
+                                                   week(as.Date(total_data$obs_date)))
 
 
 ui <- navbarPage("Hubbard Brook Watershed Data Analysis", theme = shinytheme("cerulean"),
@@ -81,6 +114,11 @@ ui <- navbarPage("Hubbard Brook Watershed Data Analysis", theme = shinytheme("ce
                             titlePanel(h3("Hubbard Brook Experimental Forest: Watershed Precipitation and Flow Trend Analysis", align = "center")),
                             sidebarLayout(
                               sidebarPanel(
+                                verbatimTextOutput(
+                                  "plotlyinfo2"
+                                ),
+                                tags$head(tags$style("#plotlyinfo2{color:black; font-size:8px; font-style:italic; 
+overflow-y:scroll; background: ghostwhite;}")),
                                 checkboxGroupInput("watersheds", "Choose Watersheds (1-9):", choices = as.character(1:9), selected = c("1")),
                                 dateRangeInput("dateRange", "Select Date Range:", start = "1956-01-01", end = "2023-12-31",
                                                min = "1956-01-01", max = "2023-12-31"),
@@ -104,8 +142,18 @@ ui <- navbarPage("Hubbard Brook Watershed Data Analysis", theme = shinytheme("ce
                  tabPanel("Rolling Averages",
                           sidebarLayout(
                             sidebarPanel(
+                              verbatimTextOutput(
+                                "plotlyinfo"
+                              ),
+                              tags$head(tags$style("#plotlyinfo{color:black; font-size:8px; font-style:italic; 
+overflow-y:scroll; 50px; background: ghostwhite;}")),
                               numericInput("rollingWindow", "Rolling Average (Days):", value = 1, min = 1, max = 365),
-                              actionButton("applyRolling", "Apply")
+                              actionButton("applyRolling", "Apply"),
+                              verbatimTextOutput(
+                                "rolling_avg_info"
+                              ),
+                              tags$head(tags$style("#rolling_avg_info{color:black; font-size:10px; font-style:italic; 
+overflow-y:scroll; background: ghostwhite;}")),
                             ),
                             mainPanel(
                               plotOutput("rollingPlot"),
@@ -130,7 +178,7 @@ server <- function(input, output, session) {
   options(shiny.maxRequestSize = 30 * 1024^2)
 
   filtered_dataset <- reactive({
-    combined_data %>%
+    total_data %>%
       filter(obs_date >= input$dateRange[1] & obs_date <= input$dateRange[2] &
                watershed %in% input$watersheds)
   })
@@ -244,6 +292,20 @@ output$monthlyGraph <- renderPlot({
   output$dataTable <- renderDT({
     datatable(aggregated_data(), options = list(pageLength = 10))
   })
+  output$rolling_avg_info <- renderPrint({
+    cat("These Graphs use the same
+date range and watersheds as 
+selected on the trend analysis panel")})
+    output$plotlyinfo <- renderPrint({
+      cat("TO ZOOM: On the streamflow plot, 
+click and drag and then double click. 
+Double click again to zoom to full extent.")}
+  )
+    output$plotlyinfo2 <- renderPrint({
+      cat("TO ZOOM: On the streamflow plot, 
+click and drag and then double click. 
+Double click again to zoom to full extent.")}
+    )
 }
 
 shinyApp(ui, server)
