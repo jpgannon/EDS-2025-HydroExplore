@@ -163,7 +163,7 @@ output$precipplot <- renderPlotly({
                     labels = c(0,25,50,100),
                     expand = c(0,0)) +
     scale_color_manual(values = c("sienna1")) +
-    labs(y = "Precipitation [mm/day]", x = "") +
+    labs(y = "Precipitation (mm/day)", x = "") +
     theme_minimal() +
     theme(axis.title.y.right = element_text(hjust = 0),
           legend.position = "bottom",
@@ -180,7 +180,7 @@ output$precipplot <- renderPlotly({
       p <- ggplot(df, aes(x = obs_date)) +
       geom_col(aes(y = precip), fill = "lightblue", alpha = 0.6) +
       geom_line(aes(y = streamflow, color = watershed, group = watershed), size = 1) +
-      scale_y_continuous(name = "Precipitation (mm/day)", sec.axis = sec_axis(~ ., name = "Streamflow (mm/day)")) +
+      scale_y_continuous(name = "Streamflow (mm/day)", sec.axis = sec_axis(~ ., name = "Streamflow (mm/day)")) +
       theme_minimal() +
       labs(title = "Precipitation & Flow Trend Analysis", x = "Date") +
       scale_color_brewer(palette = "Set1")
