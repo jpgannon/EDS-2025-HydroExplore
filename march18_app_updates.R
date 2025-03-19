@@ -121,7 +121,7 @@ ui <- navbarPage("Hubbard Brook Watershed Data Analysis", theme = shinytheme("ce
                                 tags$head(tags$style("#plotlyinfo2{color:black; font-size:8px; font-style:italic; 
 overflow-y:scroll; background: ghostwhite;}")),
                                 checkboxGroupInput("watersheds", "Choose Watersheds (1-9):", choices = as.character(1:9), selected = c("1")),
-                                dateRangeInput("dateRange", "Select Date Range:", start = "2010-01-01", end = "2023-12-31",
+                                dateRangeInput("dateRange", "Select Date Range:", start = "1956-01-01", end = "2023-12-31",
                                                min = "1956-01-01", max = "2023-12-31"),
                                 checkboxInput("addBaseflow", "Add Baseflow Line", value = FALSE),
                                 hr(),
@@ -133,8 +133,8 @@ overflow-y:scroll; background: ghostwhite;}")),
                                 h5("Median Discharge:"), verbatimTextOutput("medianDischarge")
                               ),
                               mainPanel(
-                                plotlyOutput("precipplot"),
-                                plotlyOutput("trendPlot")
+                                plotOutput("precipplot"),
+                                plotOutput("trendPlot")
                               )
                             )
                           )
@@ -153,7 +153,7 @@ overflow-y:scroll; background: ghostwhite;}")),
                               ),
                               mainPanel(
                                 fluidRow(
-                                  column(12, plotlyOutput("monthly_summary", height = "90vh")) # Full width & large height
+                                  column(12, plotOutput("monthly_summary", height = "90vh")) # Full width & large height
                                 )
                               )
                             )
@@ -231,7 +231,7 @@ server <- function(input, output, session) {
   output$missingDays <- renderText({ sum(filtered_dataset()$flag == 1, na.rm = TRUE) })
   output$avgDischarge <- renderText({ mean(filtered_dataset()$streamflow, na.rm = TRUE) })
   output$medianDischarge <- renderText({ median(filtered_dataset()$streamflow, na.rm = TRUE) })
-  output$precipplot <- renderPlotly({
+  output$precipplot <- renderPlot({
     df <- aggregated_data()
     
     if (nrow(df) == 0) {
@@ -251,7 +251,7 @@ server <- function(input, output, session) {
             legend.justification = c(0.75, 0.5),
             legend.title = element_blank())
   })
-  output$trendPlot <- renderPlotly({
+  output$trendPlot <- renderPlot({
     df <- aggregated_data()
     
     if (nrow(df) == 0) {
@@ -264,17 +264,17 @@ server <- function(input, output, session) {
     all_colors <- c(streamflow_colors, baseflow_colors)
     
     p <- ggplot(df, aes(x = obs_date)) +
-      geom_line(aes(y = streamflow, color = watershed, group = watershed), size = 1) +
+      geom_line(aes(y = streamflow, color = watershed, group = watershed), linewidth = 1) +
       scale_y_continuous(name = "Precipitation (mm/day)", sec.axis = sec_axis(~ ., name = "Streamflow (mm/day)")) +
-      theme_minimal() +
+      theme_classic() +
       labs(title = "Precipitation & Flow Trend Analysis", x = "Date") +
       scale_color_manual(values = all_colors, name = "Legend")
     
     if (input$addBaseflow) {
-      p <- p + geom_line(aes(y = baseflow, color = paste(watershed, "baseflow")), size = 1)
+      p <- p + geom_line(aes(y = baseflow, color = paste(watershed, "baseflow")), linewidth = 1)
     }
     
-    ggplotly(p)
+    p
   })
   
   rolling_data <- eventReactive(input$applyRolling, {
@@ -289,7 +289,7 @@ server <- function(input, output, session) {
     ggplot(df, aes(x = obs_date, y = rolling_avg, color = watershed)) +
       geom_col(size = 1) +
       labs(title = paste0(input$rollingWindow, "-Day Rolling Average"), x = "Date", y = "Streamflow (mm/day)") +
-      theme_minimal()
+      theme_classic()
   })
   output$monthlyGraph <- renderPlot({
     colors <- c("Average Precipitation per day" = "steelblue", "Average Streamflow per day" = "orangered")
@@ -330,10 +330,10 @@ Double click again to zoom to full extent.")}
 click and drag and then double click. 
 Double click again to zoom to full extent.")}
   )
-  output$monthly_summary <- renderPlotly({
+  output$monthly_summary <- renderPlot({
     if (input$time_period == "Monthly") {
       
-      df <- filtered_dataset() |> mutate(precip_divided_by_discharge=(streamflow/precip)) |> 
+      df <- filtered_dataset() |> group_by(obs_date,watershed)|> mutate(precip_divided_by_discharge=(precip/streamflow)) |> 
         mutate(obs_date = as.Date(obs_date))
       #%>%
         #group_by(mo,yr, watershed) %>%
@@ -350,24 +350,24 @@ Double click again to zoom to full extent.")}
         facet_wrap(~mo)
       if (input$addprecip) {
         
-        p <- p + geom_line(aes(y = precip, color = paste(watershed, "Precip"), size = 1))
+        p <- p + geom_line(aes(y = precip, color = "Precip"))
       }
       if (input$addstreamflow) {
         
-        p <- p + geom_line(aes(y = streamflow, color = paste(watershed, "Streamflow"), size = 1))
+        p <- p + geom_line(aes(y = streamflow, color = "Streamflow"))
       }
       if (input$addsnow) {
         
-        p <- p + geom_line(aes(y = snow_depth, color = paste(watershed, "Snow Depth"), size = 1))
+        p <- p + geom_line(aes(y = snow_depth, color = "Snow Depth"))
       }
       if (input$addprecipdischarge) {
         
-        p <- p + geom_line(aes(y = precip_divided_by_discharge, color = paste(watershed, "Precip/Streamflow"), size = 1))
+        p <- p + geom_line(aes(y = precip_divided_by_discharge, color = "Precip/Streamflow"))
       }
-      return(ggplotly(p))
+     return(p)
     }
     if (input$time_period == "Weekly") {
-      df <- filtered_dataset() |> mutate(precip_divided_by_discharge=(streamflow/precip)) |> 
+      df <- filtered_dataset() |> group_by(obs_date,watershed)|> mutate(precip_divided_by_discharge=(precip/streamflow)) |> 
         mutate(obs_date = as.Date(obs_date))
       #%>%
         #group_by(mo,yr,wk) %>%
@@ -384,21 +384,21 @@ Double click again to zoom to full extent.")}
         facet_wrap(~wk)
       if (input$addprecip) {
         
-        p <- p + geom_line(aes(y = precip, color = paste(watershed, "Precip"), size = 1))
+        p <- p + geom_line(aes(y = precip, color = "Precip"))
       }
       if (input$addstreamflow) {
         
-        p <- p + geom_line(aes(y = streamflow, color = paste(watershed, "Streamflow"), size = 1))
+        p <- p + geom_line(aes(y = streamflow, color = "Streamflow"))
       }
       if (input$addsnow) {
         
-        p <- p + geom_line(aes(y = snow_depth, color = paste(watershed, "Snow Depth"), size = 1))
+        p <- p + geom_line(aes(y = snow_depth, color = "Snow Depth"))
       }
       if (input$addprecipdischarge) {
         
-        p <- p + geom_line(aes(y = precip_divided_by_discharge, color = paste(watershed, "Precip/Streamflow"), size = 1))
+        p <- p + geom_line(aes(y = precip_divided_by_discharge, color = "Precip/Streamflow"))
       }
-      return(ggplotly(p))
+      return(p)
     }
   })
   
