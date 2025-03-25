@@ -21,7 +21,7 @@ suppressPackageStartupMessages(library('cowplot'))
 suppressPackageStartupMessages(library('gridExtra'))
 suppressPackageStartupMessages(library('webshot2'))
 suppressPackageStartupMessages(library('kableExtra'))
-suppressPackageStartupMessages(library(RColorBrewer))
+suppressPackageStartupMessages(library('RColorBrewer'))
 
 
 BaseflowSeparation <- function(streamflow, filter_parameter=0.925, passes=3){
@@ -108,17 +108,18 @@ total_data[,c('yr', 'mo', 'da', 'wk')] <- cbind(year(as.Date(total_data$obs_date
                                                 day(as.Date(total_data$obs_date)),
                                                 week(as.Date(total_data$obs_date)))
 monthly_data <- total_data |> group_by(watershed,yr,mo) |> 
-  summarise(total_precip = sum(precip), 
-            total_streamflow = sum(streamflow), 
-            precip_divided_streamflow = (sum(precip)/sum(streamflow)),
+  summarise(total_precip = sum(precip,na.rm = TRUE), 
+            total_streamflow = sum(streamflow,na.rm = TRUE), 
+            precip_divided_streamflow = (sum(precip,na.rm = TRUE)/sum(streamflow,na.rm = TRUE)),
             obs_date = first(obs_date),
             avg_snow_depth = mean(snow_depth,, na.rm = TRUE))
 weekly_data <- total_data |> group_by(watershed,yr,wk,mo) |> 
-  summarise(total_precip = sum(precip), 
-            total_streamflow = sum(streamflow), 
-            precip_divided_streamflow = (sum(precip)/sum(streamflow)),
+  summarise(total_precip = sum(precip,na.rm = TRUE), 
+            total_streamflow = sum(streamflow,na.rm = TRUE), 
+            precip_divided_streamflow = (sum(precip,na.rm = TRUE)/sum(streamflow,na.rm = TRUE)),
             obs_date = first(obs_date),
             avg_snow_depth = mean(snow_depth,, na.rm = TRUE))
+
 
 ui <- navbarPage("Hubbard Brook Watershed Data Analysis", theme = shinytheme("cerulean"),
                  tabPanel("Trend Analysis",
@@ -161,15 +162,22 @@ overflow-y:scroll; background: ghostwhite;}")),
                                 radioButtons("time_period", "Select Time Period:",
                                              choices = list("Monthly" = "Monthly", "Weekly" = "Weekly"),
                                              selected = "Monthly", inline = TRUE),
-                                checkboxInput("addprecip", "Add Precip Line", value = FALSE),
-                                checkboxInput("addstreamflow", "Add Streamflow Line", value = FALSE),
-                                checkboxInput("addsnow", "Add Snow Levels Line", value = FALSE),
-                                checkboxInput("addprecipdischarge", "Add P/Q Line", value = FALSE),
+                                checkboxInput("addprecip", "Add Precip Date", value = FALSE),
+                                checkboxInput("addstreamflow", "Add Streamflow Data", value = FALSE),
+                                checkboxInput("addsnow", "Add Snow Levels Data", value = FALSE),
+                                checkboxInput("addprecipdischarge", "Add P/Q Data", value = FALSE),
+                                checkboxInput("addtrendline", "Add Precip & Streamflow Trendline", value = FALSE),
+                                numericInput("ci_level", "Confidence Interval Level (Between 0 and 1)", value = 0.95, min = 0, max = 1, step = 0.01),
+                                selectInput("trend_var", "Select Trend Variable", choices = c("Precip" = "total_precip", 
+                                                                                              "Streamflow" = "total_streamflow", 
+                                                                                              "Snow Depth"= "avg_snow_depth", 
+                                                                                              "Precipitation/Streamflow" = "precip_divided_streamflow")),
                                 selectInput("single_watershed", "Select One Watershed:", choices = as.character(1:9), selected = "1"),  # NEW
                                 sliderInput("zoom_monthly", "Select Date Range:",  # NEW
                                             min = as.Date("1956-01-01"), max = as.Date("2023-12-31"), 
                                             value = c(as.Date("1956-01-01"), as.Date("2023-12-31")),
-                                            timeFormat = "%Y-%m-%d", width = "100%")
+                                            timeFormat = "%Y-%m-%d", width = "100%"),
+                                verbatimTextOutput("model_stats")
                               ),
                               mainPanel(
                                 fluidRow(
@@ -415,7 +423,7 @@ Double click again to zoom to full extent.")}
       
       df <- monthly_data |> 
         filter(obs_date >= input$zoom_monthly[1] & obs_date <= input$zoom_monthly[2] &  # Date filter
-                 watershed == input$single_watershed)  # Watershed filter
+                 watershed == input$single_watershed) |> filter(total_streamflow != 0)  # Watershed filter
       
       p <- ggplot(df, aes(x = as.Date(obs_date))) +
         scale_y_continuous(name = "Streamflow (mm/day)", sec.axis = sec_axis(~ ., name = "Streamflow (mm/day)")) +
@@ -426,25 +434,62 @@ Double click again to zoom to full extent.")}
         facet_wrap(~mo)
       
       if (input$addprecip) {
-        p <- p + geom_line(aes(y = total_precip, color = "Precip"))
+        p <- p + geom_point(aes(y = total_precip, color = "Precip"))
       }
       if (input$addstreamflow) {
-        p <- p + geom_line(aes(y = total_streamflow, color = "Streamflow"))
+        p <- p + geom_point(aes(y = total_streamflow, color = "Streamflow"))
       }
       if (input$addsnow) {
-        p <- p + geom_line(aes(y = avg_snow_depth, color = "Snow Depth"))
+        p <- p + geom_point(aes(y = avg_snow_depth, color = "Snow Depth"))
       }
       if (input$addprecipdischarge) {
-        p <- p + geom_line(aes(y = precip_divided_streamflow, color = "Precip/Streamflow"))
+        p <- p + geom_point(aes(y = precip_divided_streamflow, color = "Precip/Streamflow"))
       }
+      
+      if (input$addtrendline) {
+        trend_var <- input$trend_var  # Get selected variable
+        
+        # Apply LOESS smoothing
+        trend_data <- df[[trend_var]]  # Select the variable (e.g., total_precip or total_streamflow)
+        
+        # Fit a LOESS model (smooth curve)
+        loess_model <- loess(trend_data ~ as.numeric(df$obs_date))  # LOESS model
+        
+        # Get fitted values and residuals
+        fitted_values <- loess_model$fitted
+        residuals <- trend_data - fitted_values
+        
+        # Compute R-squared from residuals
+        rss <- sum(residuals^2)  # Residual sum of squares
+        tss <- sum((trend_data - mean(trend_data))^2)  # Total sum of squares
+        r_squared <- 1 - (rss / tss)
+        
+        # To get the p-value, fit a linear model and get its p-value
+        lm_model <- lm(trend_data ~ as.numeric(df$obs_date))  # Linear model for p-value
+        p_value <- summary(lm_model)$coefficients[2, 4]  # p-value for the slope
+        
+        # Plot the LOESS smooth line
+        p <- p + geom_smooth(method = "loess", aes(y = trend_data), color = "black", size = 1,
+                             level = input$ci_level) 
+        
+        # Store R-squared and p-value in reactive output
+        output$model_stats <- renderText({
+          paste0("R² = ", round(r_squared, 3), "\nP-value = ", signif(p_value, 3))
+        })
+      } else {
+        # Reset output when trendline is not selected
+        output$model_stats <- renderText({ "" })
+      }
+      
       return(p)
     }
     
+    # Repeat the same for weekly data if necessary
     if (input$time_period == "Weekly") {
       
       df <- weekly_data |> 
         filter(obs_date >= input$zoom_monthly[1] & obs_date <= input$zoom_monthly[2] & 
-                 watershed == input$single_watershed)
+                 watershed == input$single_watershed) |> filter(total_streamflow != 0)
       
       p <- ggplot(df, aes(x = as.Date(obs_date))) +
         scale_y_continuous(name = "Streamflow (mm/day)", sec.axis = sec_axis(~ ., name = "Streamflow (mm/day)")) +
@@ -455,17 +500,53 @@ Double click again to zoom to full extent.")}
         facet_wrap(~mo)
       
       if (input$addprecip) {
-        p <- p + geom_line(aes(y = total_precip, color = "Precip"))
+        p <- p + geom_point(aes(y = total_precip, color = "Precip"))
       }
       if (input$addstreamflow) {
-        p <- p + geom_line(aes(y = total_streamflow, color = "Streamflow"))
+        p <- p + geom_point(aes(y = total_streamflow, color = "Streamflow"))
       }
       if (input$addsnow) {
-        p <- p + geom_line(aes(y = avg_snow_depth, color = "Snow Depth"))
+        p <- p + geom_point(aes(y = avg_snow_depth, color = "Snow Depth"))
       }
       if (input$addprecipdischarge) {
-        p <- p + geom_line(aes(y = precip_divided_streamflow, color = "Precip/Streamflow"))
+        p <- p + geom_point(aes(y = precip_divided_streamflow, color = "Precip/Streamflow"))
       }
+      
+      if (input$addtrendline) {
+        trend_var <- input$trend_var  # Get selected variable
+        
+        # Apply LOESS smoothing
+        trend_data <- df[[trend_var]]  # Select the variable (e.g., total_precip or total_streamflow)
+        
+        # Fit a LOESS model (smooth curve)
+        loess_model <- loess(trend_data ~ as.numeric(df$obs_date))  # LOESS model
+        
+        # Get fitted values and residuals
+        fitted_values <- loess_model$fitted
+        residuals <- trend_data - fitted_values
+        
+        # Compute R-squared from residuals
+        rss <- sum(residuals^2)  # Residual sum of squares
+        tss <- sum((trend_data - mean(trend_data))^2)  # Total sum of squares
+        r_squared <- 1 - (rss / tss)
+        
+        # To get the p-value, fit a linear model and get its p-value
+        lm_model <- lm(trend_data ~ as.numeric(df$obs_date))  # Linear model for p-value
+        p_value <- summary(lm_model)$coefficients[2, 4]  # p-value for the slope
+        
+        # Plot the LOESS smooth line
+        p <- p + geom_smooth(method = "loess", aes(y = trend_data), color = "black", size = 1,
+                             level = input$ci_level) 
+        
+        # Store R-squared and p-value in reactive output
+        output$model_stats <- renderText({
+          paste0("R² = ", round(r_squared, 3), "\nP-value = ", signif(p_value, 3))
+        })
+      } else {
+        # Reset output when trendline is not selected
+        output$model_stats <- renderText({ "" })
+      }
+      
       return(p)
     }
   })
