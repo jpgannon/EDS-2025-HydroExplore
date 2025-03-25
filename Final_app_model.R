@@ -335,7 +335,7 @@ server <- function(input, output, session) {
     
     watersheds <- unique(df$watershed)
     streamflow_colors <- setNames(brewer.pal(length(watersheds), "Set1"), watersheds)
-    baseflow_colors <- setNames(brewer.pal(length(watersheds), "Set2"), paste(watersheds, "baseflow"))
+    baseflow_colors <- setNames(brewer.pal(length(watersheds), "Set3"), paste(watersheds, "baseflow"))
     all_colors <- c(streamflow_colors, baseflow_colors)
     
     p <- ggplot(df, aes(x = as.Date(obs_date))) +
