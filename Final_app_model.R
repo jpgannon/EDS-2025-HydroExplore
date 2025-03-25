@@ -355,14 +355,15 @@ server <- function(input, output, session) {
   rolling_avg_data <- reactive({
     df <- aggregated_data()  # Ensure this function exists and returns data
     req(df)  # Ensure df is available
+    # Apply zoom filter based on date range
+    
+    df <- df %>% filter(as.Date(obs_date) >= as.Date(input$zoom_rolling[1]), 
+                        as.Date(obs_date) <= as.Date(input$zoom_rolling[2]))
     
     df <- df %>%
       group_by(watershed) %>%
       mutate(rolling_avg = zoo::rollmean(streamflow, k = rollingWindowVal(), fill = NA, align = "right")) %>%
       ungroup()
-    
-    # Apply zoom filter based on date range
-    df <- df %>% filter(obs_date >= input$zoom_rolling[1], obs_date <= input$zoom_rolling[2])
     
     df
   })
@@ -371,7 +372,7 @@ server <- function(input, output, session) {
   output$rollingPlot <- renderPlot({
     df <- rolling_avg_data()
     req(nrow(df) > 0)  # Ensure there's data to plot
-    
+    df$obs_date <- as.Date(df$obs_date)
     ggplot(df, aes(x = obs_date, y = rolling_avg, color = watershed)) +
       geom_line() +
       labs(title = paste0(rollingWindowVal(), "-Day Rolling Average"),
@@ -426,7 +427,7 @@ Double click again to zoom to full extent.")}
                  watershed == input$single_watershed) |> filter(total_streamflow != 0)  # Watershed filter
       
       p <- ggplot(df, aes(x = as.Date(obs_date))) +
-        scale_y_continuous(name = "Streamflow (mm/day)", sec.axis = sec_axis(~ ., name = "Streamflow (mm/day)")) +
+        scale_y_continuous(name = "Streamflow (mm/month)", sec.axis = sec_axis(~ ., name = "Streamflow (mm/month)")) +
         theme_minimal() +
         labs(title = "Monthly Trend Analysis", x = "Date") +
         scale_x_date(date_labels = "%Y", date_breaks = "10 years") + 
@@ -492,7 +493,7 @@ Double click again to zoom to full extent.")}
                  watershed == input$single_watershed) |> filter(total_streamflow != 0)
       
       p <- ggplot(df, aes(x = as.Date(obs_date))) +
-        scale_y_continuous(name = "Streamflow (mm/day)", sec.axis = sec_axis(~ ., name = "Streamflow (mm/day)")) +
+        scale_y_continuous(name = "Streamflow (mm/week)", sec.axis = sec_axis(~ ., name = "Streamflow (mm/week)")) +
         theme_minimal() +
         labs(title = "Weekly Trend Analysis", x = "Date") +
         scale_x_date(date_labels = "%Y", date_breaks = "10 years") + 
