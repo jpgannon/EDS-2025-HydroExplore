@@ -49,10 +49,10 @@ BaseflowSeparation <- function(streamflow, filter_parameter=0.925, passes=3){
   return(f)
 }
 
-watershed_precip <- read_csv(url("https://raw.githubusercontent.com/jpgannon/EDS-2025-HydroExplore/refs/heads/main/dailyWatershedPrecip1956-2024.csv"))
-watershed_flow <- read_csv(url("https://raw.githubusercontent.com/jpgannon/EDS-2025-HydroExplore/refs/heads/main/HBEF_DailyStreamflow_1956-2023.csv"))
-snow_data <- read_csv(url("https://raw.githubusercontent.com/jpgannon/EDS-2025-HydroExplore/refs/heads/main/HBEF_snowcourse_1956-2024.csv"))
-snow_info <- read_csv("https://raw.githubusercontent.com/jpgannon/EDS-2025-HydroExplore/refs/heads/main/snowcourse_info.csv")
+watershed_precip <- read_csv("dailyWatershedPrecip1956-2024.csv")
+watershed_flow <- read_csv("HBEF_DailyStreamflow_1956-2023.csv")
+snow_data <- read_csv("HBEF_snowcourse_1956-2024.csv")
+snow_info <- read_csv("snowcourse_info.csv")
 
 watershed_precip <- watershed_precip |> mutate(watershed = str_replace(watershed, "W", ""))
 
@@ -162,7 +162,7 @@ overflow-y:scroll; background: ghostwhite;}")),
                                 radioButtons("time_period", "Select Time Period:",
                                              choices = list("Monthly" = "Monthly", "Weekly" = "Weekly"),
                                              selected = "Monthly", inline = TRUE),
-                                checkboxInput("addprecip", "Add Precip Date", value = FALSE),
+                                checkboxInput("addprecip", "Add Precip Data", value = FALSE),
                                 checkboxInput("addstreamflow", "Add Streamflow Data", value = FALSE),
                                 checkboxInput("addsnow", "Add Snow Levels Data", value = FALSE),
                                 checkboxInput("addprecipdischarge", "Add P/Q Data", value = FALSE),
@@ -314,6 +314,7 @@ server <- function(input, output, session) {
   output$missingDays <- renderText({ sum(filtered_dataset()$flag == 1, na.rm = TRUE) })
   output$avgDischarge <- renderText({ mean(filtered_dataset()$streamflow, na.rm = TRUE) })
   output$medianDischarge <- renderText({ median(filtered_dataset()$streamflow, na.rm = TRUE) })
+  
   output$precipplot <- renderPlot({
     df <- aggregated_data() %>%
       filter(obs_date >= input$zoom_trend[1] & obs_date <= input$zoom_trend[2])
@@ -322,8 +323,8 @@ server <- function(input, output, session) {
     
     ggplot(df) +
       geom_line(aes(x = as.Date(obs_date), y = precip, color = watershed, group = watershed)) +
-      scale_y_reverse(position = "right", limits = c(300, 0), 
-                      breaks = c(0, 25, 50, 100), labels = c(0, 25, 50, 100), expand = c(0, 0)) +
+      scale_y_reverse(position = "right", limits = c(200, 0), 
+                      breaks = c(0, 25, 50, 100,150), labels = c(0, 25, 50, 100,150), expand = c(0, 0)) +
       labs(y = "Precipitation (mm/day)", x = "") +
       theme_minimal()
   })
@@ -555,3 +556,4 @@ Double click again to zoom to full extent.")}
 }
 
 shinyApp(ui, server)
+
