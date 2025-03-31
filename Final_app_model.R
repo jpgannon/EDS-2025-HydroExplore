@@ -22,6 +22,11 @@ suppressPackageStartupMessages(library('gridExtra'))
 suppressPackageStartupMessages(library('webshot2'))
 suppressPackageStartupMessages(library('kableExtra'))
 suppressPackageStartupMessages(library('RColorBrewer'))
+suppressPackageStartupMessages(library('forecast'))
+suppressPackageStartupMessages(library('nlme'))
+suppressPackageStartupMessages(library('mgcv'))
+
+
 
 
 BaseflowSeparation <- function(streamflow, filter_parameter=0.925, passes=3){
@@ -108,14 +113,14 @@ total_data[,c('yr', 'mo', 'da', 'wk')] <- cbind(year(as.Date(total_data$obs_date
                                                 day(as.Date(total_data$obs_date)),
                                                 week(as.Date(total_data$obs_date)))
 monthly_data <- total_data |> group_by(watershed,yr,mo) |> 
-  summarise(total_precip = sum(precip,na.rm = TRUE), 
-            total_streamflow = sum(streamflow,na.rm = TRUE), 
+  summarise(total_precip = mean(precip,na.rm = TRUE), 
+            total_streamflow = mean(streamflow,na.rm = TRUE), 
             precip_divided_streamflow = (sum(precip,na.rm = TRUE)/sum(streamflow,na.rm = TRUE)),
             obs_date = first(obs_date),
             avg_snow_depth = mean(snow_depth,, na.rm = TRUE))
 weekly_data <- total_data |> group_by(watershed,yr,wk,mo) |> 
-  summarise(total_precip = sum(precip,na.rm = TRUE), 
-            total_streamflow = sum(streamflow,na.rm = TRUE), 
+  summarise(total_precip = mean(precip,na.rm = TRUE), 
+            total_streamflow = mean(streamflow,na.rm = TRUE), 
             precip_divided_streamflow = (sum(precip,na.rm = TRUE)/sum(streamflow,na.rm = TRUE)),
             obs_date = first(obs_date),
             avg_snow_depth = mean(snow_depth,, na.rm = TRUE))
@@ -159,14 +164,11 @@ overflow-y:scroll; background: ghostwhite;}")),
                           fluidPage( # Ensures full-page layout
                             sidebarLayout(
                               sidebarPanel(
-                                radioButtons("time_period", "Select Time Period:",
-                                             choices = list("Monthly" = "Monthly", "Weekly" = "Weekly"),
-                                             selected = "Monthly", inline = TRUE),
                                 checkboxInput("addprecip", "Add Precip Data", value = FALSE),
                                 checkboxInput("addstreamflow", "Add Streamflow Data", value = FALSE),
                                 checkboxInput("addsnow", "Add Snow Levels Data", value = FALSE),
                                 checkboxInput("addprecipdischarge", "Add P/Q Data", value = FALSE),
-                                checkboxInput("addtrendline", "Add Precip & Streamflow Trendline", value = FALSE),
+                                checkboxInput("addtrendline", "Add Trendline", value = FALSE),
                                 numericInput("ci_level", "Confidence Interval Level (Between 0 and 1)", value = 0.95, min = 0, max = 1, step = 0.01),
                                 selectInput("trend_var", "Select Trend Variable", choices = c("Precip" = "total_precip", 
                                                                                               "Streamflow" = "total_streamflow", 
@@ -217,6 +219,11 @@ overflow-y:scroll; background: ghostwhite;}")),
                  tabPanel("See Tables",
                           sidebarLayout(
                             sidebarPanel(
+                              selectInput("download_table", "Select the Table to Download", choices = c("Total Data" = "total_data", 
+                                                                                            "Filtered Data" = "filtered_dataset", 
+                                                                                            "Aggregated_data"= "aggregated_data", 
+                                                                                            "Weekly Data" = "weekly_data",
+                                                                                            "Monthly Data" = "monthly_data")),
                               downloadButton("downloadData", "Download Current Data")),
                             mainPanel(DTOutput("dataTable"))
                           )
@@ -301,14 +308,49 @@ server <- function(input, output, session) {
   output$recordPeriod <- renderText({
     paste(year(input$dateRange[1]), "to", year(input$dateRange[2]))
   })
-  output$downloadData <- downloadHandler(
-    filename = function() {
-      paste("Aggregated_data", ".csv", sep = "")
-    },
-    content = function(file){
-      write.csv(aggregated_data(),file, row.names = FALSE)
+  output$downloadData <- downloadHandler({
+    table <- input$download_table
+    if (table =="total_data") {
+      filename = function() {
+        paste("total_data", ".csv", sep = "")
+      }
+      content = function(file){
+        write.csv(total_data,file, row.names = FALSE)
+      }
     }
-  )
+    if (table =="aggregated_data") {
+      filename = function() {
+        paste("aggregated_data", ".csv", sep = "")
+      }
+      content = function(file){
+        write.csv(aggregated_data(),file, row.names = FALSE)
+      }
+    }
+    if (table == "weekly_data") {
+      filename = function() {
+        paste("weekly_data", ".csv", sep = "")
+      }
+      content = function(file){
+        write.csv(weekly_data,file, row.names = FALSE)
+      }
+    }
+    if (table == "filtered_dataset") {
+      filename = function() {
+        paste("filtered_dataset", ".csv", sep = "")
+      }
+      content = function(file){
+        write.csv(filtered_dataset(),file, row.names = FALSE)
+      }
+    }
+    if (table == "monthly_data") {
+      filename = function() {
+        paste("monthly_data", ".csv", sep = "")
+      }
+      content = function(file){
+        write.csv(monthly_data,file, row.names = FALSE)
+      }
+    }
+  })
   
   output$totalDays <- renderText({ n_distinct(filtered_dataset()$obs_date) })
   output$missingDays <- renderText({ sum(filtered_dataset()$flag == 1, na.rm = TRUE) })
@@ -404,7 +446,22 @@ server <- function(input, output, session) {
       scale_fill_manual(values = colors)
   })
   output$dataTable <- renderDT({
-    datatable(filtered_dataset(), options = list(pageLength = 10))
+    table <- input$download_table
+    if (table == "total_data") {
+      datatable(total_data, options = list(pageLength = 10))
+    }
+    if (table == "aggregated_data") {
+      datatable(aggregated_data(), options = list(pageLength = 10))
+    }
+    if (table == "weekly_data") {
+      datatable(weekly_data, options = list(pageLength = 10))
+    }
+    if (table == "filtered_dataset") {
+      datatable(filtered_dataset(), options = list(pageLength = 10))
+    }
+    if (table == "monthly_data") {
+      datatable(monthly_data, options = list(pageLength = 10))
+    }
   })
   output$rolling_avg_info <- renderPrint({
     cat("These Graphs use the same
@@ -420,140 +477,76 @@ Double click again to zoom to full extent.")}
 click and drag and then double click. 
 Double click again to zoom to full extent.")}
   )
-  output$monthly_summary <- renderPlot({
-    if (input$time_period == "Monthly") {
-      
-      df <- monthly_data |> 
-        filter(obs_date >= input$zoom_monthly[1] & obs_date <= input$zoom_monthly[2] &  # Date filter
-                 watershed == input$single_watershed) |> filter(total_streamflow != 0)  # Watershed filter
-      
-      p <- ggplot(df, aes(x = as.Date(obs_date))) +
-        scale_y_continuous(name = "Streamflow (mm/month)", sec.axis = sec_axis(~ ., name = "Streamflow (mm/month)")) +
-        theme_minimal() +
-        labs(title = "Monthly Trend Analysis", x = "Date") +
-        scale_x_date(date_labels = "%Y", date_breaks = "10 years") + 
-        scale_color_brewer(palette = "Set1") +
-        facet_wrap(~mo)
-      
-      if (input$addprecip) {
-        p <- p + geom_point(aes(y = total_precip, color = "Precip"))
-      }
-      if (input$addstreamflow) {
-        p <- p + geom_point(aes(y = total_streamflow, color = "Streamflow"))
-      }
-      if (input$addsnow) {
-        p <- p + geom_point(aes(y = avg_snow_depth, color = "Snow Depth"))
-      }
-      if (input$addprecipdischarge) {
-        p <- p + geom_point(aes(y = precip_divided_streamflow, color = "Precip/Streamflow"))
-      }
-      
-      if (input$addtrendline) {
-        trend_var <- input$trend_var  # Get selected variable
-        
-        # Apply LOESS smoothing
-        trend_data <- df[[trend_var]]  # Select the variable (e.g., total_precip or total_streamflow)
-        
-        # Fit a LOESS model (smooth curve)
-        loess_model <- loess(trend_data ~ as.numeric(df$obs_date))  # LOESS model
-        
-        # Get fitted values and residuals
-        fitted_values <- loess_model$fitted
-        residuals <- trend_data - fitted_values
-        
-        # Compute R-squared from residuals
-        rss <- sum(residuals^2)  # Residual sum of squares
-        tss <- sum((trend_data - mean(trend_data))^2)  # Total sum of squares
-        r_squared <- 1 - (rss / tss)
-        
-        # To get the p-value, fit a linear model and get its p-value
-        lm_model <- lm(trend_data ~ as.numeric(df$obs_date))  # Linear model for p-value
-        p_value <- summary(lm_model)$coefficients[2, 4]  # p-value for the slope
-        
-        # Plot the LOESS smooth line
-        p <- p + geom_smooth(method = "loess", aes(y = trend_data), color = "black", size = 1,
-                             level = input$ci_level) 
-        
-        # Store R-squared and p-value in reactive output
-        output$model_stats <- renderText({
-          paste0("R² = ", round(r_squared, 3), "\nP-value = ", signif(p_value, 3))
-        })
-      } else {
-        # Reset output when trendline is not selected
-        output$model_stats <- renderText({ "" })
-      }
-      
-      return(p)
+output$monthly_summary <- renderPlot({
+    
+    df <- monthly_data |> 
+      filter(obs_date >= input$zoom_monthly[1] & obs_date <= input$zoom_monthly[2] &
+               watershed == input$single_watershed) |> filter(total_streamflow != 0)
+    
+    p <- ggplot(df, aes(x = as.Date(obs_date))) +
+      scale_y_continuous(name = "(mm/day)", sec.axis = sec_axis(~ ., name = "(mm/day)")) +
+      theme_classic() +
+      labs(title = "Monthly Trend Analysis", x = "Date") +
+      scale_x_date(date_labels = "%Y", date_breaks = "10 years") + 
+      scale_color_brewer(palette = "Set1") +
+      facet_wrap(~mo, scales = "free_y")  # Allow different y-axis scales for each facet
+    
+    # Add precipitation, streamflow, or snow data based on user inputs
+    if (input$addprecip) {
+      p <- p + geom_point(aes(y = total_precip, color = "Precip"))
+    }
+    if (input$addstreamflow) {
+      p <- p + geom_point(aes(y = total_streamflow, color = "Streamflow"))
+    }
+    if (input$addsnow) {
+      # Add snow depth data, but handle missing data gracefully
+      p <- p + geom_point(aes(y = avg_snow_depth, color = "Snow Depth"), na.rm = TRUE)
+    }
+    if (input$addprecipdischarge) {
+      p <- p + geom_point(aes(y = precip_divided_streamflow, color = "Precip/Streamflow"))
     }
     
-    # Repeat the same for weekly data if necessary
-    if (input$time_period == "Weekly") {
+    if (input$addtrendline) {
+      trend_var <- input$trend_var
+      # Ensure obs_date is ordered and convert it to a time series object
+      df <- df[order(df$obs_date), ]
       
-      df <- weekly_data |> 
-        filter(obs_date >= input$zoom_monthly[1] & obs_date <= input$zoom_monthly[2] & 
-                 watershed == input$single_watershed) |> filter(total_streamflow != 0)
+      ts_data <- ts(df[[trend_var]], frequency = 12)  # Assuming monthly data
+      exog_data <- as.numeric(df$obs_date)  # Convert date to numeric for ARIMAX
       
-      p <- ggplot(df, aes(x = as.Date(obs_date))) +
-        scale_y_continuous(name = "Streamflow (mm/week)", sec.axis = sec_axis(~ ., name = "Streamflow (mm/week)")) +
-        theme_minimal() +
-        labs(title = "Weekly Trend Analysis", x = "Date") +
-        scale_x_date(date_labels = "%Y", date_breaks = "10 years") + 
-        scale_color_brewer(palette = "Set1") +
-        facet_wrap(~mo)
+      # Fit an ARIMAX model (ARIMA with exogenous variables)
+      arimax_model <- auto.arima(ts_data, xreg = exog_data)
       
-      if (input$addprecip) {
-        p <- p + geom_point(aes(y = total_precip, color = "Precip"))
-      }
-      if (input$addstreamflow) {
-        p <- p + geom_point(aes(y = total_streamflow, color = "Streamflow"))
-      }
-      if (input$addsnow) {
-        p <- p + geom_point(aes(y = avg_snow_depth, color = "Snow Depth"))
-      }
-      if (input$addprecipdischarge) {
-        p <- p + geom_point(aes(y = precip_divided_streamflow, color = "Precip/Streamflow"))
-      }
+      # Get fitted values from the ARIMAX model
+      df$fitted_values <- fitted(arimax_model)
       
-      if (input$addtrendline) {
-        trend_var <- input$trend_var  # Get selected variable
-        
-        # Apply LOESS smoothing
-        trend_data <- df[[trend_var]]  # Select the variable (e.g., total_precip or total_streamflow)
-        
-        # Fit a LOESS model (smooth curve)
-        loess_model <- loess(trend_data ~ as.numeric(df$obs_date))  # LOESS model
-        
-        # Get fitted values and residuals
-        fitted_values <- loess_model$fitted
-        residuals <- trend_data - fitted_values
-        
-        # Compute R-squared from residuals
-        rss <- sum(residuals^2)  # Residual sum of squares
-        tss <- sum((trend_data - mean(trend_data))^2)  # Total sum of squares
-        r_squared <- 1 - (rss / tss)
-        
-        # To get the p-value, fit a linear model and get its p-value
-        lm_model <- lm(trend_data ~ as.numeric(df$obs_date))  # Linear model for p-value
-        p_value <- summary(lm_model)$coefficients[2, 4]  # p-value for the slope
-        
-        # Plot the LOESS smooth line
-        p <- p + geom_smooth(method = "loess", aes(y = trend_data), color = "black", size = 1,
-                             level = input$ci_level) 
-        
-        # Store R-squared and p-value in reactive output
-        output$model_stats <- renderText({
-          paste0("R² = ", round(r_squared, 3), "\nP-value = ", signif(p_value, 3))
-        })
-      } else {
-        # Reset output when trendline is not selected
-        output$model_stats <- renderText({ "" })
-      }
+      # Calculate R² for the fit
+      residuals <- df[[trend_var]] - df$fitted_values
+      r_squared <- 1 - (sum(residuals^2) / sum((df[[trend_var]] - mean(df[[trend_var]]))^2))
       
-      return(p)
+      # Plot the ARIMAX model trendline
+      p <- p + geom_line(aes(y = fitted_values, color = "Trendline"), size = 1, data = df)
+      
+      # Output model statistics (R²)
+      output$model_stats <- renderText({
+        paste0("R² = ", round(r_squared, 3))
+      })
+    } else {
+      output$model_stats <- renderText({ "" })
     }
+    
+    # Dynamically adjust y-axis limits for snow depth if included
+    if (input$addsnow || input$trend_var == "avg_snow_depth") {
+      max_snow_by_month <- df %>%
+        group_by(mo) %>%
+        summarize(max_snow = max(avg_snow_depth, na.rm = TRUE))
+      
+      p <- p + facet_wrap(~mo, scales = "free_y") +
+        expand_limits(y = max_snow_by_month$max_snow)
+    }
+    p
   })
   
 }
 
 shinyApp(ui, server)
-
