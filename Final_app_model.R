@@ -220,10 +220,10 @@ overflow-y:scroll; background: ghostwhite;}")),
                           sidebarLayout(
                             sidebarPanel(
                               selectInput("download_table", "Select the Table to Download", choices = c("Total Data" = "total_data", 
-                                                                                            "Filtered Data" = "filtered_dataset", 
-                                                                                            "Aggregated_data"= "aggregated_data", 
-                                                                                            "Weekly Data" = "weekly_data",
-                                                                                            "Monthly Data" = "monthly_data")),
+                                                                                                        "Filtered Data" = "filtered_dataset", 
+                                                                                                        "Aggregated_data"= "aggregated_data", 
+                                                                                                        "Weekly Data" = "weekly_data",
+                                                                                                        "Monthly Data" = "monthly_data")),
                               downloadButton("downloadData", "Download Current Data")),
                             mainPanel(DTOutput("dataTable"))
                           )
@@ -308,49 +308,28 @@ server <- function(input, output, session) {
   output$recordPeriod <- renderText({
     paste(year(input$dateRange[1]), "to", year(input$dateRange[2]))
   })
-  output$downloadData <- downloadHandler({
-    table <- input$download_table
-    if (table =="total_data") {
-      filename = function() {
-        paste("total_data", ".csv", sep = "")
-      }
-      content = function(file){
-        write.csv(total_data,file, row.names = FALSE)
-      }
-    }
-    if (table =="aggregated_data") {
-      filename = function() {
-        paste("aggregated_data", ".csv", sep = "")
-      }
-      content = function(file){
-        write.csv(aggregated_data(),file, row.names = FALSE)
-      }
-    }
-    if (table == "weekly_data") {
-      filename = function() {
-        paste("weekly_data", ".csv", sep = "")
-      }
-      content = function(file){
-        write.csv(weekly_data,file, row.names = FALSE)
+  output$downloadData <- downloadHandler(
+    filename = function() {
+      table <- input$download_table
+      paste(table, ".csv", sep = "")
+    },
+    content = function(file) {
+      table <- input$download_table
+      if (table == "total_data") {
+        write.csv(total_data, file, row.names = FALSE)
+      } else if (table == "aggregated_data") {
+        write.csv(aggregated_data(), file, row.names = FALSE)
+      } else if (table == "weekly_data") {
+        write.csv(weekly_data, file, row.names = FALSE)
+      } else if (table == "filtered_dataset") {
+        write.csv(filtered_dataset(), file, row.names = FALSE)
+      } else if (table == "monthly_data") {
+        write.csv(monthly_data, file, row.names = FALSE)
+      } else {
+        stop("Invalid table selection")
       }
     }
-    if (table == "filtered_dataset") {
-      filename = function() {
-        paste("filtered_dataset", ".csv", sep = "")
-      }
-      content = function(file){
-        write.csv(filtered_dataset(),file, row.names = FALSE)
-      }
-    }
-    if (table == "monthly_data") {
-      filename = function() {
-        paste("monthly_data", ".csv", sep = "")
-      }
-      content = function(file){
-        write.csv(monthly_data,file, row.names = FALSE)
-      }
-    }
-  })
+  )
   
   output$totalDays <- renderText({ n_distinct(filtered_dataset()$obs_date) })
   output$missingDays <- renderText({ sum(filtered_dataset()$flag == 1, na.rm = TRUE) })
@@ -387,7 +366,7 @@ server <- function(input, output, session) {
       scale_x_date(date_labels = "%Y", date_breaks = "10 years") +  # Adjusting x-axis
       theme_classic() +
       labs(title = "Precipitation & Flow Trend Analysis", x = "Year") +
-      scale_color_brewer(palette = "Set1")
+      scale_color_manual(values = all_colors)
     
     if (input$addBaseflow) {
       p <- p + geom_line(aes(y = baseflow, color = paste(watershed, "baseflow")), linewidth = 1)
@@ -450,16 +429,16 @@ server <- function(input, output, session) {
     if (table == "total_data") {
       datatable(total_data, options = list(pageLength = 10))
     }
-    if (table == "aggregated_data") {
+    else if (table == "aggregated_data") {
       datatable(aggregated_data(), options = list(pageLength = 10))
     }
-    if (table == "weekly_data") {
+    else if (table == "weekly_data") {
       datatable(weekly_data, options = list(pageLength = 10))
     }
-    if (table == "filtered_dataset") {
+    else if (table == "filtered_dataset") {
       datatable(filtered_dataset(), options = list(pageLength = 10))
     }
-    if (table == "monthly_data") {
+    else if (table == "monthly_data") {
       datatable(monthly_data, options = list(pageLength = 10))
     }
   })
@@ -477,7 +456,7 @@ Double click again to zoom to full extent.")}
 click and drag and then double click. 
 Double click again to zoom to full extent.")}
   )
-output$monthly_summary <- renderPlot({
+  output$monthly_summary <- renderPlot({
     
     df <- monthly_data |> 
       filter(obs_date >= input$zoom_monthly[1] & obs_date <= input$zoom_monthly[2] &
