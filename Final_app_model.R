@@ -29,6 +29,7 @@ suppressPackageStartupMessages(library('mgcv'))
 
 
 
+
 BaseflowSeparation <- function(streamflow, filter_parameter=0.925, passes=3){
   suppressWarnings(Ends<-c(1,length(streamflow))*rep(1,(passes+1))) # Start and end values for the filter function
   suppressWarnings(AddToStart<-c(1,-1)*rep(1,passes))
@@ -125,6 +126,10 @@ weekly_data <- total_data |> group_by(watershed,yr,wk,mo) |>
             obs_date = first(obs_date),
             avg_snow_depth = mean(snow_depth,, na.rm = TRUE))
 
+heatmap <- total_data |> mutate(year = as.numeric(yr),
+                                day_of_year = as.numeric(mo) * 30 + as.numeric(da))
+
+
 
 ui <- navbarPage("Hubbard Brook Watershed Data Analysis", theme = shinytheme("cerulean"),
                  tabPanel("Trend Analysis",
@@ -132,9 +137,6 @@ ui <- navbarPage("Hubbard Brook Watershed Data Analysis", theme = shinytheme("ce
                             titlePanel(h3("Hubbard Brook Experimental Forest: Watershed Precipitation and Flow Trend Analysis", align = "center")),
                             sidebarLayout(
                               sidebarPanel(
-                                verbatimTextOutput(
-                                  "plotlyinfo2"
-                                ),
                                 tags$head(tags$style("#rolling_avg_info{color:black; font-size:10px; font-style:italic; 
 overflow-y:scroll; background: ghostwhite;}")),
                                 checkboxGroupInput("watersheds", "Choose Watersheds (1-9):", choices = as.character(1:9), selected = c("1")),
@@ -152,7 +154,7 @@ overflow-y:scroll; background: ghostwhite;}")),
                               mainPanel(
                                 plotOutput("precipplot", width = "100%", height = "200px"), 
                                 plotOutput("trendPlot"),
-                                sliderInput("zoom_trend", "Trend and Precip Plot::", 
+                                sliderInput("zoom_trend", "Trend and Precip Plot:", 
                                             min = as.Date("1956-01-01"), max = as.Date("2023-12-31"), 
                                             value = c(as.Date("1956-01-01"), as.Date("2023-12-31")),
                                             timeFormat = "%Y-%m-%d", width = "100%")
@@ -189,33 +191,53 @@ overflow-y:scroll; background: ghostwhite;}")),
                             )
                           )
                  ),
-                 tabPanel("Rolling Averages",
-                          sidebarLayout(
-                            sidebarPanel(
-                              verbatimTextOutput(
-                                "plotlyinfo"
+                 tabPanel("Heatmap Analysis",
+                          fluidPage(
+                            sidebarLayout(
+                              sidebarPanel(
+                                selectInput("add_var", "Select Heatmap Variable", choices = c("Add Precip Data" = "precip", 
+                                                                                              "Add Streamflow Data" = "streamflow")),
+                                selectInput("single_watershed", "Select One Watershed:", choices = as.character(1:9), selected = "1"),
+                                sliderInput("heatmap_rolling", "Select Data Range:",
+                                            min = as.Date("1956-01-01"), max = as.Date("2023-12-31"),
+                                            value = c(as.Date("1956-01-01"), as.Date("2023-12-31")),
+                                            timeFormat = "%Y-%m-%d", width = "100%"),
+                                verbatimTextOutput("model_stats")
                               ),
-                              tags$head(tags$style("#plotlyinfo{color:black; font-size:8px; font-style:italic; 
-overflow-y:scroll; 50px; background: ghostwhite;}")),
-                              numericInput("rollingWindow", "Rolling Average (Days):", value = 1, min = 1, max = 365),
-                              actionButton("applyRolling", "Apply"),
-                              verbatimTextOutput(
-                                "rolling_avg_info"
-                              ),
-                              tags$head(tags$style("#rolling_avg_info{color:black; font-size:10px; font-style:italic; 
-overflow-y:scroll; background: ghostwhite;}")),
-                            ),
-                            mainPanel(
-                              plotOutput("rollingPlot"),
-                              sliderInput("zoom_rolling", "Zoom Rolling Average Plot:", 
-                                          min = as.Date("1956-01-01"), max = as.Date("2023-12-31"), 
-                                          value = c(as.Date("1956-01-01"), as.Date("2023-12-31")),
-                                          timeFormat = "%Y-%m-%d", width = "100%"),
-                              plotOutput("monthlyGraph") # New graph added below rolling average graph
+                              mainPanel(
+                                fluidRow(
+                                  column(12, plotOutput("heatmap", height = "90vh"))
+                                )
+                              )
                             )
                           )
                  ),
-                 
+#                  tabPanel("Rolling Averages",
+#                           sidebarLayout(
+#                             sidebarPanel(
+#                               verbatimTextOutput(
+#                                 "plotlyinfo"
+#                               ),
+#                               tags$head(tags$style("#plotlyinfo{color:black; font-size:8px; font-style:italic; 
+# overflow-y:scroll; 50px; background: ghostwhite;}")),
+#                               numericInput("rollingWindow", "Rolling Average (Days):", value = 1, min = 1, max = 365),
+#                               actionButton("applyRolling", "Apply"),
+#                               verbatimTextOutput(
+#                                 "rolling_avg_info"
+#                               ),
+#                               tags$head(tags$style("#rolling_avg_info{color:black; font-size:10px; font-style:italic; 
+# overflow-y:scroll; background: ghostwhite;}")),
+#                             ),
+                 #            mainPanel(
+                 #              plotOutput("rollingPlot"),
+                 #              sliderInput("zoom_rolling", "Zoom Rolling Average Plot:", 
+                 #                          min = as.Date("1956-01-01"), max = as.Date("2023-12-31"), 
+                 #                          value = c(as.Date("1956-01-01"), as.Date("2023-12-31")),
+                 #                          timeFormat = "%Y-%m-%d", width = "100%"),
+                 #              plotOutput("monthlyGraph") # New graph added below rolling average graph
+                 #            )
+                 #          )
+                 # ),
                  tabPanel("See Tables",
                           sidebarLayout(
                             sidebarPanel(
@@ -252,18 +274,22 @@ overflow-y:scroll; background: ghostwhite;}")),
                               a line in order for the plots to appear. Also important to note is that unlike the Trend Analysis tab, 
                               you can only view the data for one watershed at a time. The date range can be adjusted using the slider at the bottom of the sidebar."),
                             
-                            h2("Rolling Averages"),
-                            p("In the Rolling Averages tab, you can see whether streamflow values have changed over time.
-                              The Rolling Averages plot summarizes how much values have changed using different time periods.
-                              You can view up to a 364-day rolling average, in which case each year would be a single point.
-                              It is recommended to use smaller timescales, such as 30 or 90 days, as these work better for plotting rolling averages.
-                              To enter the number of days, you can simply type in the number of days in the input box, or you can use the arrows on the right side of the input box.
-                              The plot will automatically update as you change the number of days, but you can also use the Apply button to confirm your input. 
-                              Please also note the message below the Apply button for selecting which watersheds you want to be plotted,
-                              the watersheds must be selected in the Trend Analysis tab. 
-                              Below the Rolling Averages plot, you will also notice an Average Precipitation and Streamflow by Month graph.
-                              This graph is an easy way to see how each month differs in its average daily streamflow and precipitation and 
-                              serves as a useful reference when comparing to the Rolling Averages plot."),
+                            #h2("Rolling Averages"),
+                            #p("In the Rolling Averages tab, you can see whether streamflow values have changed over time.
+                              #The Rolling Averages plot summarizes how much values have changed using different time periods.
+                              #You can view up to a 364-day rolling average, in which case each year would be a single point.
+                              #It is recommended to use smaller timescales, such as 30 or 90 days, as these work better for plotting rolling averages.
+                              #To enter the number of days, you can simply type in the number of days in the input box, or you can use the arrows on the right side of the input box.
+                              #The plot will automatically update as you change the number of days, but you can also use the Apply button to confirm your input. 
+                              #Please also note the message below the Apply button for selecting which watersheds you want to be plotted,
+                              #the watersheds must be selected in the Trend Analysis tab. 
+                              #Below the Rolling Averages plot, you will also notice an Average Precipitation and Streamflow by Month graph.
+                              #This graph is an easy way to see how each month differs in its average daily streamflow and precipitation and 
+                              #serves as a useful reference when comparing to the Rolling Averages plot."),
+                            
+                            h2("Heatmap Analysis"),
+                            p("The heatmap shows by day of year when the highflow events happen. You can select by watershed and adjust the date range with the slider. 
+                              Darker areas on the heatmap indicate a high flow for that day and lighter areas indicate lower flows."),
                             
                             h2("See Tables"), 
                             p("Here you can examine and download the data that is used in the app. 
@@ -442,6 +468,69 @@ server <- function(input, output, session) {
       datatable(monthly_data, options = list(pageLength = 10))
     }
   })
+  
+  output$heatmap <- renderPlot({
+    df <- heatmap %>%
+      filter(obs_date >= input$heatmap_rolling[1] & obs_date <= input$heatmap_rolling[2]) %>%
+      filter(watershed == input$single_watershed)
+    
+    if (nrow(df) == 0) return(NULL)
+    
+    df <- df %>%
+      mutate(year = as.numeric(yr),
+             day_of_year = as.numeric(mo) * 30 + as.numeric(da))
+    
+    if (input$add_var == "precip") {
+      data_to_plot <- df %>%
+        mutate(value = precip) %>%
+        group_by(year, day_of_year) %>%
+        summarise(total_value = sum(value, na.rm = TRUE))
+    } 
+    else if (input$add_var == "streamflow") {
+      data_to_plot <- df %>%
+        mutate(value = streamflow) %>%
+        group_by(year, day_of_year) %>%
+        summarise(total_value = sum(value, na.rm = TRUE))
+    } 
+    else if (input$add_var == "snow") {
+      data_to_plot <- df %>%
+        mutate(value = snow_depth) %>%
+        group_by(year, day_of_year) %>%
+        summarise(total_value = sum(value, na.rm = TRUE))
+    } else {
+      return(NULL)
+    }
+    
+    if (nrow(data_to_plot) == 0) return(NULL)
+    
+    ggplot(data_to_plot, aes(x = day_of_year, y = year, fill = total_value)) +
+      geom_tile() +
+      scale_fill_gradient(low = "white", high = "blue") +
+      theme_classic() +
+      labs(title = paste(input$single_watershed, "Heatmap by Day of Year and Year"),
+           x = "Day of Year",
+           y = "Year",
+           fill = paste(if (input$add_var == "precip") "Precipitation" else if (input$add_var == "streamflow") "Streamflow" else "Snow Depth")) +
+      theme(axis.text.x = element_text(angle = 45, hjust = 1),
+            axis.title.x = element_text(hjust = 0.5),
+            axis.title.y = element_text(hjust = 0.5))
+  })
+  
+  rolling_avg_data <- reactive({
+    df <- aggregated_data()  # Ensure this function exists and returns data
+    req(df)  # Ensure df is available
+    # Apply zoom filter based on date range
+    
+    df <- df %>% filter(as.Date(obs_date) >= as.Date(input$zoom_rolling[1]), 
+                        as.Date(obs_date) <= as.Date(input$zoom_rolling[2]))
+    
+    df <- df %>%
+      group_by(watershed) %>%
+      mutate(rolling_avg = zoo::rollmean(streamflow, k = rollingWindowVal(), fill = NA, align = "right")) %>%
+      ungroup()
+    
+    df
+  })
   output$rolling_avg_info <- renderPrint({
     cat("These Graphs use the same
 date range and watersheds as 
@@ -529,3 +618,4 @@ Double click again to zoom to full extent.")}
 }
 
 shinyApp(ui, server)
+
