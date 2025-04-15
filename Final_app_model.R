@@ -550,17 +550,21 @@ server <- function(input, output, session) {
     
     if (nrow(data_to_plot) == 0) return(NULL)
     
-    ggplot(data_to_plot, aes(x = day_of_year, y = year, fill = total_value)) +
+    # Rank flow events
+    ranked_df <- data_to_plot %>%
+      mutate(rank = rank(-total_value)) %>%
+      mutate(category = case_when(
+        rank <= 10 ~ "Top 10",
+        rank <= 50 ~ "Top 50",
+        TRUE ~ "Other"
+      ))
+    
+    ggplot(ranked_df, aes(x = day_of_year, y = year, fill = category, text = paste("Date:", year, "- Day", day_of_year))) +
       geom_tile() +
-      scale_fill_gradient(low = "white", high = "blue") +
-      theme_classic() +
-      labs(title = paste(input$single_watershed, "Heatmap by Day of Year and Year"),
-           x = "Day of Year",
-           y = "Year",
-           fill = paste(if (input$add_var == "precip") "Precipitation" else if (input$add_var == "streamflow") "Streamflow" else "Snow Depth")) +
-      theme(axis.text.x = element_text(angle = 45, hjust = 1),
-            axis.title.x = element_text(hjust = 0.5),
-            axis.title.y = element_text(hjust = 0.5))
+      scale_fill_manual(values = c("Top 10" = "red", "Top 50" = "orange", "Other" = "lightblue")) +
+      labs(title = paste("Watershed", input$single_watershed, "High Flow Events Heatmap"),
+           x = "Day of Year", y = "Year", fill = "Event Rank") +
+      theme_minimal()
   })
   
   rolling_avg_data <- reactive({
