@@ -321,18 +321,13 @@ overflow-y:scroll; background: ghostwhite;}")),
                               a line in order for the plots to appear. Also important to note is that unlike the Trend Analysis tab, 
                               you can only view the data for one watershed at a time. The date range can be adjusted using the slider at the bottom of the sidebar."),
                             
-                            #h2("Rolling Averages"),
-                            #p("In the Rolling Averages tab, you can see whether streamflow values have changed over time.
-                              #The Rolling Averages plot summarizes how much values have changed using different time periods.
-                              #You can view up to a 364-day rolling average, in which case each year would be a single point.
-                              #It is recommended to use smaller timescales, such as 30 or 90 days, as these work better for plotting rolling averages.
-                              #To enter the number of days, you can simply type in the number of days in the input box, or you can use the arrows on the right side of the input box.
-                              #The plot will automatically update as you change the number of days, but you can also use the Apply button to confirm your input. 
-                              #Please also note the message below the Apply button for selecting which watersheds you want to be plotted,
-                              #the watersheds must be selected in the Trend Analysis tab. 
-                              #Below the Rolling Averages plot, you will also notice an Average Precipitation and Streamflow by Month graph.
-                              #This graph is an easy way to see how each month differs in its average daily streamflow and precipitation and 
-                              #serves as a useful reference when comparing to the Rolling Averages plot."),
+                            h2("Yearly Analysis"),
+                            p("The Yearly Analysis tab provides a focused view of hydrologic data across entire water years (October 1st to September 30th), 
+                            allowing you to explore seasonal patterns and year-to-year variability. This tab is ideal for examining how precipitation, streamflow, 
+                            snow levels, and the precipitation-to-streamflow ratio (P/Q) vary across individual years. Using the sidebar, 
+                            you can select a specific watershed and narrow the water-year range of interest. You can also choose which data variables to display. 
+                            Each year is shown in a separate panel, enabling clear visual comparison. 
+                            Note that you must select at least one variable (e.g., precipitation, streamflow) for the plot to render."),
                             
                             h2("Heatmap Analysis"),
                             p("The heatmap shows by day of year when the highflow events happen. You can select by watershed and adjust the date range with the slider. 
