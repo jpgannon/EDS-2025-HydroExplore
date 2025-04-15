@@ -162,8 +162,6 @@ ui <- navbarPage("Hubbard Brook Watershed Data Analysis", theme = shinytheme("ce
                                 tags$head(tags$style("#rolling_avg_info{color:black; font-size:10px; font-style:italic; 
 overflow-y:scroll; background: ghostwhite;}")),
                                 checkboxGroupInput("watersheds", "Choose Watersheds (1-9):", choices = as.character(1:9), selected = c("1")),
-                                dateRangeInput("dateRange", "Select Date Range:", start = "1956-01-01", end = "2023-12-31",
-                                               min = "1956-01-01", max = "2023-12-31"),
                                 checkboxInput("addBaseflow", "Add Baseflow Line", value = FALSE),
                                 hr(),
                                 h4("Selected Data Range:"), verbatimTextOutput("dateRangeText"),
@@ -362,7 +360,7 @@ server <- function(input, output, session) {
   })
   filtered_dataset <- reactive({
     total_data %>%
-      filter(obs_date >= input$dateRange[1] & obs_date <= input$dateRange[2] &
+      filter(obs_date >= input$zoom_range[1] & obs_date <= input$zoom_range[2] &
                watershed %in% input$watersheds)
   })
   
@@ -378,7 +376,7 @@ server <- function(input, output, session) {
   })
   
   output$recordPeriod <- renderText({
-    paste(year(input$dateRange[1]), "to", year(input$dateRange[2]))
+    paste(year(input$zoom_range[1]), "to", year(input$zoom_range[2]))
   })
   output$downloadData <- downloadHandler(
     filename = function() {
