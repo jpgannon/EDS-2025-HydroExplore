@@ -25,6 +25,8 @@ suppressPackageStartupMessages(library('RColorBrewer'))
 suppressPackageStartupMessages(library('forecast'))
 suppressPackageStartupMessages(library('nlme'))
 suppressPackageStartupMessages(library('mgcv'))
+suppressPackageStartupMessages(library('dataRetrieval'))
+suppressPackageStartupMessages(library('shinyWidgets'))
 
 
 
@@ -133,7 +135,9 @@ water_year_days <- c(
   seq.Date(as.Date("2000-10-01"), as.Date("2000-12-31"), by = "day"),
   seq.Date(as.Date("2000-01-01"), as.Date("2000-09-30"), by = "day")
 )
-year_data <- addWaterYear(total_data)
+year_data <- total_data |> mutate(obs_date = as.Date(obs_date),
+                                  Date = as.Date(obs_date))
+year_data <- addWaterYear(year_data)
 
 year_data <- year_data %>%
   group_by(yr, da, mo, watershed) %>%
@@ -259,22 +263,22 @@ overflow-y:scroll; background: ghostwhite;}")),
                             )
                           )
                  ),
-#                  tabPanel("Rolling Averages",
-#                           sidebarLayout(
-#                             sidebarPanel(
-#                               verbatimTextOutput(
-#                                 "plotlyinfo"
-#                               ),
-#                               tags$head(tags$style("#plotlyinfo{color:black; font-size:8px; font-style:italic; 
-# overflow-y:scroll; 50px; background: ghostwhite;}")),
-#                               numericInput("rollingWindow", "Rolling Average (Days):", value = 1, min = 1, max = 365),
-#                               actionButton("applyRolling", "Apply"),
-#                               verbatimTextOutput(
-#                                 "rolling_avg_info"
-#                               ),
-#                               tags$head(tags$style("#rolling_avg_info{color:black; font-size:10px; font-style:italic; 
-# overflow-y:scroll; background: ghostwhite;}")),
-#                             ),
+                 #                  tabPanel("Rolling Averages",
+                 #                           sidebarLayout(
+                 #                             sidebarPanel(
+                 #                               verbatimTextOutput(
+                 #                                 "plotlyinfo"
+                 #                               ),
+                 #                               tags$head(tags$style("#plotlyinfo{color:black; font-size:8px; font-style:italic; 
+                 # overflow-y:scroll; 50px; background: ghostwhite;}")),
+                 #                               numericInput("rollingWindow", "Rolling Average (Days):", value = 1, min = 1, max = 365),
+                 #                               actionButton("applyRolling", "Apply"),
+                 #                               verbatimTextOutput(
+                 #                                 "rolling_avg_info"
+                 #                               ),
+                 #                               tags$head(tags$style("#rolling_avg_info{color:black; font-size:10px; font-style:italic; 
+                 # overflow-y:scroll; background: ghostwhite;}")),
+                 #                             ),
                  #            mainPanel(
                  #              plotOutput("rollingPlot"),
                  #              sliderInput("zoom_rolling", "Zoom Rolling Average Plot:", 
