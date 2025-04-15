@@ -129,6 +129,24 @@ weekly_data <- total_data |> group_by(watershed,yr,wk,mo) |>
 heatmap <- total_data |> mutate(year = as.numeric(yr),
                                 day_of_year = as.numeric(mo) * 30 + as.numeric(da))
 
+water_year_days <- c(
+  seq.Date(as.Date("2000-10-01"), as.Date("2000-12-31"), by = "day"),
+  seq.Date(as.Date("2000-01-01"), as.Date("2000-09-30"), by = "day")
+)
+year_data <- addWaterYear(total_data)
+
+year_data <- year_data %>%
+  group_by(yr, da, mo, watershed) %>%
+  mutate(precip_divided_by_discharge = sum(precip, na.rm = TRUE) / sum(streamflow, na.rm = TRUE)) %>%
+  ungroup() %>%
+  mutate(
+    obs_date = as.Date(obs_date),      # ensure obs_date is Date
+    water_doy = case_when(
+      month(obs_date) >= 10 ~ yday(obs_date) - yday(as.Date(paste0(year(obs_date), "-10-01"))) + 1,
+      TRUE ~ yday(obs_date) + (365 - yday(as.Date(paste0(year(obs_date) - 1, "-09-30"))))
+    )
+  )
+
 
 
 ui <- navbarPage("Hubbard Brook Watershed Data Analysis", theme = shinytheme("cerulean"),
@@ -209,6 +227,35 @@ overflow-y:scroll; background: ghostwhite;}")),
                                   column(12, plotOutput("heatmap", height = "90vh"))
                                 )
                               )
+                            )
+                          )
+                 ),
+                 tabPanel("Yearly Analysis",
+                          sidebarLayout(
+                            sidebarPanel(
+                              sliderInput("zoom_wateryear", "Select Water‑Year Range:", min = min(year_data$waterYear), max = max(year_data$waterYear), value = c(min(year_data$waterYear), max(year_data$waterYear)), step = 1, sep = "", width = "100%"),
+                              dateRangeInput(
+                                inputId = "season_range",
+                                label   = "Select Seasonal Range (Within Each Water‑Year):",
+                                start   = as.Date("2000-10-01"),   # Oct 1 of dummy year
+                                end     = as.Date("2001-09-30"),   # Sep 30 of next year
+                                min     = as.Date("2000-10-01"),
+                                max     = as.Date("2001-09-30"),
+                                format  = "M dd",                  # show “Oct 01”, “Jan 15”, etc.
+                                width   = "100%"
+                              ),
+                              selectInput("yearlysingle_watershed", "Select One Watershed:", choices = sort(unique(year_data$watershed))),
+                              checkboxInput("addyearlyprecip", "Add Precip Data", FALSE),
+                              checkboxInput("addyearlystreamflow", "Add Streamflow Data", FALSE),
+                              checkboxInput("addyearlysnow", "Add Snow Levels Data", FALSE),
+                              checkboxInput("addyearlyprecipdischarge", "Add P/Q Data", FALSE),
+                              # checkboxInput("addyearlytrendline", "Add Trendline", FALSE),
+                              # selectInput("yearlytrend_var", "Select Trend Variable:", choices = c("Precip" = "precip", "Streamflow" = "streamflow", "Snow Depth" = "snow_depth", "Precipitation/Streamflow" = "precip_divided_by_discharge")),
+                              verbatimTextOutput("year_model_stats")
+                            ),
+                            mainPanel(
+                              plotOutput(
+                                "yearly_summary",height = "800px")
                             )
                           )
                  ),
@@ -612,6 +659,111 @@ Double click again to zoom to full extent.")}
       p <- p + facet_wrap(~mo, scales = "free_y") +
         expand_limits(y = max_snow_by_month$max_snow)
     }
+    p
+  })
+  doy_range <- reactive({
+    req(input$season_range)
+    start <- input$season_range[1]
+    end   <- input$season_range[2]
+    
+    start_doy <- if (month(start) >= 10) yday(start) - yday(as.Date(paste0(year(start), "-10-01"))) + 1
+    else yday(start) + (365 - yday(as.Date(paste0(year(start) - 1, "-09-30"))))
+    
+    end_doy <- if (month(end) >= 10) yday(end) - yday(as.Date(paste0(year(end), "-10-01"))) + 1
+    else yday(end) + (365 - yday(as.Date(paste0(year(end) - 1, "-09-30"))))
+    
+    c(start_doy, end_doy)
+  })
+  
+  # 2) Filter by water‑year and obs_yday, with wrap logic
+  filtered_year_data <- reactive({
+    req(input$zoom_wateryear, input$yearlysingle_watershed)
+    days <- doy_range()
+    
+    df <- year_data %>%
+      filter(
+        waterYear >= input$zoom_wateryear[1],
+        waterYear <= input$zoom_wateryear[2],
+        watershed  == input$yearlysingle_watershed,
+        streamflow != 0
+      ) %>%
+      {
+        if (days[1] <= days[2]) {
+          filter(., water_doy >= days[1], water_doy <= days[2])
+        } else {
+          filter(., water_doy >= days[1] | water_doy <= days[2])
+        }
+      }
+    
+    cat("▶ Rows after filtering:", nrow(df), "\n")
+    df
+  })
+  
+  # 3) ARIMAX fit reactive (only runs when trendline is requested)
+  # trend_results <- reactive({
+  #   req(input$addyearlytrendline)
+  #   df <- filtered_year_data()
+  #   df <- df[order(df$obs_date), ]
+  #   
+  #   ts_data   <- ts(df[[input$yearlytrend_var]], frequency = 12)
+  #   exog_data <- as.numeric(df$obs_date)
+  #   
+  #   model <- auto.arima(ts_data, xreg = exog_data)
+  #   df$fitted_values <- fitted(model)
+  #   
+  #   residuals  <- df[[input$yearlytrend_var]] - df$fitted_values
+  #   r2         <- 1 - sum(residuals^2) /
+  #     sum((df[[input$yearlytrend_var]] - mean(df[[input$yearlytrend_var]]))^2)
+  #   
+  #   list(df = df, r_squared = r2)
+  # })
+  
+  # 4) Render R² text
+  output$year_model_stats <- renderText({
+    req(input$addyearlytrendline)
+    res <- trend_results()
+    paste0("R² = ", round(res$r_squared, 3))
+  })
+  
+  # 5) Render the main plot
+  output$yearly_summary <- renderPlot({
+    df <- filtered_year_data()
+    req(nrow(df) > 0)
+    
+    p <- ggplot(df, aes(x = water_doy)) +
+      theme_classic() +
+      labs(
+        title = "Yearly Trend Analysis (By Day of Water Year)",
+        x     = "Day of Water Year (1 = Oct 1)",
+        y     = "(mm/day)"
+      ) +
+      scale_y_continuous(sec.axis = sec_axis(~ ., name = "(mm/day)")) +
+      scale_color_brewer(palette = "Set1") +
+      facet_wrap(~ waterYear, scales = "free_y")  # keep y free, x fixed for comparison
+    
+    # conditional layers
+    if (isTRUE(input$addyearlyprecip)) {
+      p <- p + geom_point(aes(y = precip, color = "Precip"), data = df)
+    }
+    if (isTRUE(input$addyearlystreamflow)) {
+      p <- p + geom_point(aes(y = streamflow, color = "Streamflow"), data = df)
+    }
+    if (isTRUE(input$addyearlysnow)) {
+      p <- p + geom_point(aes(y = snow_depth, color = "Snow Depth"),
+                          na.rm = TRUE, data = df)
+    }
+    if (isTRUE(input$addyearlyprecipdischarge)) {
+      p <- p + geom_point(aes(y = precip_divided_by_discharge,
+                              color = "Precip/Streamflow"),
+                          data = df)
+    }
+    # # add trendline if selected
+    # if (isTRUE(input$addyearlytrendline)) {
+    #   res <- trend_results()
+    #   p <- p + geom_line(aes(x = water_doy, y = fitted_values, color = "Trendline"),
+    #                      size = 1, data = res$df)
+    # }
+    
     p
   })
   
