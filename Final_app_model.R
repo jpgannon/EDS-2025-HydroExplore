@@ -360,7 +360,7 @@ server <- function(input, output, session) {
   })
   filtered_dataset <- reactive({
     total_data %>%
-      filter(obs_date >= input$zoom_range[1] & obs_date <= input$zoom_range[2] &
+      filter(obs_date >= input$zoom_trend[1] & obs_date <= input$zoom_trend[2] &
                watershed %in% input$watersheds)
   })
   
@@ -372,11 +372,11 @@ server <- function(input, output, session) {
   })
   
   output$dateRangeText <- renderText({
-    paste(input$dateRange[1], "to", input$dateRange[2])
+    paste(input$zoom_trend[1], "to", input$zoom_trend[2])
   })
   
   output$recordPeriod <- renderText({
-    paste(year(input$zoom_range[1]), "to", year(input$zoom_range[2]))
+    paste(year(input$dateRange[1]), "to", year(input$dateRange[2]))
   })
   output$downloadData <- downloadHandler(
     filename = function() {
