@@ -164,7 +164,6 @@ overflow-y:scroll; background: ghostwhite;}")),
                                 checkboxGroupInput("watersheds", "Choose Watersheds (1-9):", choices = as.character(1:9), selected = c("1")),
                                 checkboxInput("addBaseflow", "Add Baseflow Line", value = FALSE),
                                 hr(),
-                                h4("Selected Data Range:"), verbatimTextOutput("dateRangeText"),
                                 h4("Period of Record:"), verbatimTextOutput("recordPeriod"),
                                 h5("Total Days:"), verbatimTextOutput("totalDays"),
                                 h5("Total Flagged Days:"), verbatimTextOutput("missingDays"),
@@ -372,11 +371,11 @@ server <- function(input, output, session) {
   })
   
   output$dateRangeText <- renderText({
-    paste(input$zoom_trend[1], "to", input$zoom_trend[2])
+    paste(input$zoom_range[1], "to", input$zoom_range[2])
   })
   
   output$recordPeriod <- renderText({
-    paste(year(input$dateRange[1]), "to", year(input$dateRange[2]))
+    paste(input$zoom_trend[1], "to", input$zoom_trend[2])
   })
   output$downloadData <- downloadHandler(
     filename = function() {
@@ -771,4 +770,3 @@ Double click again to zoom to full extent.")}
 }
 
 shinyApp(ui, server)
-
