@@ -163,7 +163,6 @@ ui <- navbarPage("Hubbard Brook Watershed Data Analysis", theme = shinytheme("ce
 overflow-y:scroll; background: ghostwhite;}")),
                                 checkboxGroupInput("watersheds", "Choose Watersheds (1-9):", choices = as.character(1:9), selected = c("1")),
                                 checkboxInput("addBaseflow", "Add Baseflow Line", value = FALSE),
-                                hr(),
                                 h4("Period of Record:"), verbatimTextOutput("recordPeriod"),
                                 h5("Total Days:"), verbatimTextOutput("totalDays"),
                                 h5("Total Flagged Days:"), verbatimTextOutput("missingDays"),
