@@ -220,6 +220,9 @@ overflow-y:scroll; background: ghostwhite;}")),
                                             min = as.Date("1956-01-01"), max = as.Date("2023-12-31"),
                                             value = c(as.Date("1956-01-01"), as.Date("2023-12-31")),
                                             timeFormat = "%Y-%m-%d", width = "100%"),
+                                sliderInput("num_highflow_days", "Select Number of Highest Flow Days:",
+                                            min = 1, max = 100, value = 10),
+                                
                                 verbatimTextOutput("model_stats")
                               ),
                               mainPanel(
@@ -545,18 +548,30 @@ server <- function(input, output, session) {
     
     if (nrow(data_to_plot) == 0) return(NULL)
     
-    # Rank flow events
-    ranked_df <- data_to_plot %>%
-      mutate(rank = rank(-total_value)) %>%
-      mutate(category = case_when(
-        rank <= 10 ~ "Top 10",
-        rank <= 50 ~ "Top 50",
-        TRUE ~ "Other"
-      ))
+    df <- heatmap %>%
+      filter(obs_date >= input$heatmap_rolling[1] & obs_date <= input$heatmap_rolling[2]) %>%
+      filter(watershed == input$single_watershed)
     
-    ggplot(ranked_df, aes(x = day_of_year, y = year, fill = category, text = paste("Date:", year, "- Day", day_of_year))) +
+    if (nrow(df) == 0) return(NULL)
+    
+    df <- df %>%
+      mutate(year = as.numeric(yr),
+             day_of_year = as.numeric(mo) * 30 + as.numeric(da))
+    
+    data_to_plot <- df %>%
+      mutate(value = if (input$add_var == "precip") precip else streamflow) %>%
+      group_by(obs_date, year, day_of_year) %>%
+      summarise(total_value = sum(value, na.rm = TRUE), .groups = "drop")
+    
+    # Rank top N highest flow days over entire date range
+    ranked_df <- data_to_plot %>%
+      arrange(desc(total_value)) %>%
+      mutate(rank = row_number(),
+             category = ifelse(rank <= input$num_highflow_days, "High Flow", "Other"))
+    
+    ggplot(ranked_df, aes(x = day_of_year, y = year, fill = category)) +
       geom_tile() +
-      scale_fill_manual(values = c("Top 10" = "red", "Top 50" = "orange", "Other" = "lightblue")) +
+      scale_fill_manual(values = c("High Flow" = "red", "Other" = "white")) +
       labs(title = paste("Watershed", input$single_watershed, "High Flow Events Heatmap"),
            x = "Day of Year", y = "Year", fill = "Event Rank") +
       theme_minimal()
