@@ -214,7 +214,7 @@ overflow-y:scroll; background: ghostwhite;}")),
                                             value = c(as.Date("1956-01-01"), as.Date("2023-12-31")),
                                             timeFormat = "%Y-%m-%d", width = "100%"),
                                 sliderInput("num_highflow_days", "Select Number of Highest Flow Days:",
-                                            min = 1, max = 100, value = 10),
+                                            min = 1, max = 1000, value = 1),
                                 
                                 verbatimTextOutput("model_stats")
                               ),
@@ -297,7 +297,8 @@ overflow-y:scroll; background: ghostwhite;}")),
                             
                             h2("Heatmap Analysis"),
                             p("The heatmap shows by day of year when the highflow events happen. You can select by watershed and adjust the date range with the slider. 
-                              Darker areas on the heatmap indicate a high flow for that day and lighter areas indicate lower flows."),
+                              Additionally, you can select the number of days with the highest flows for the date range you selected with the slider at the bottom of the 
+                              sidebar. You can select up to 1000 days with the highest flows. These dates will be shown in red on the heatmap."),
                             
                             h2("See Tables"), 
                             p("Here you can examine and download the data that is used in the app. 
