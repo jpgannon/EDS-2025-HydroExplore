@@ -137,12 +137,9 @@ year_data <- total_data %>%
   group_by(waterYear, water_doy, watershed) %>%
   mutate(
     snow_depth = mean(swe,, na.rm = TRUE),
-    sum_streamflow_calc = sum(streamflow[precip > 0], na.rm = TRUE),
-    sum_precip_calc     = sum(precip[precip > 0],    na.rm = TRUE),
-    discharge_divided_by_precip = ifelse(sum_precip_calc > 0,
-                                         sum_streamflow_calc / sum_precip_calc,
-                                         NA)
-  ) %>%
+    sum_streamflow_calc = sum(streamflow, na.rm = TRUE),
+    sum_precip_calc     = sum(precip,    na.rm = TRUE),
+    discharge_divided_by_precip = sum_streamflow_calc / sum_precip_calc,NA) %>%
   ungroup()
 
 #This sets up our UI
@@ -487,8 +484,7 @@ server <- function(input, output, session) {
     
     df <- monthly_data |> 
       filter(obs_date >= input$zoom_monthly[1] & obs_date <= input$zoom_monthly[2] &
-               watershed == input$single_watershed) |> filter(total_streamflow != 0)|> 
-      filter(avg_snow_depth != -99)
+               watershed == input$single_watershed)
     
     p <- ggplot(df, aes(x = as.Date(obs_date))) +
       scale_y_continuous(name = "(mm/day)", sec.axis = sec_axis(~ ., name = "(mm/day)")) +
@@ -591,8 +587,7 @@ server <- function(input, output, session) {
   
   # 5) Render the main plot
   output$yearly_summary <- renderPlot({
-    df <- filtered_year_data() |> 
-      filter(snow_depth != -99)
+    df <- filtered_year_data()
     req(nrow(df) > 0)
     
     p <- ggplot(df, aes(x = water_doy)) +
@@ -621,8 +616,8 @@ server <- function(input, output, session) {
       p <- p + geom_line(aes(y = streamflow, color = "Streamflow"), data = df)
     }
     if (isTRUE(input$addyearlysnow)) {
-      p <- p + geom_line(aes(y = snow_depth, color = "Snow Depth"),
-                         na.rm = TRUE, data = df)
+      p <- p + geom_col(aes(y = snow_depth, color = "Snow Depth"),
+                         na.rm = FALSE, data = df)
     }
     
     p
