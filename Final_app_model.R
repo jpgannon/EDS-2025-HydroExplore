@@ -31,7 +31,7 @@ suppressPackageStartupMessages(library('shinyWidgets'))
 
 
 
-
+#This is used to make our baseflow data
 BaseflowSeparation <- function(streamflow, filter_parameter=0.925, passes=3){
   suppressWarnings(Ends<-c(1,length(streamflow))*rep(1,(passes+1))) # Start and end values for the filter function
   suppressWarnings(AddToStart<-c(1,-1)*rep(1,passes))
@@ -57,13 +57,15 @@ BaseflowSeparation <- function(streamflow, filter_parameter=0.925, passes=3){
   return(f)
 }
 
+#Reading in our data
 watershed_precip <- read_csv("dailyWatershedPrecip1956-2024.csv")
 watershed_flow <- read_csv("HBEF_DailyStreamflow_1956-2023.csv")
 snow_data <- read_csv("HBEF_snowcourse_1956-2024.csv")
 snow_info <- read_csv("snowcourse_info.csv")
 
-watershed_precip <- watershed_precip |> mutate(watershed = str_replace(watershed, "W", ""))
 
+#These steps set up our dataset
+watershed_precip <- watershed_precip |> mutate(watershed = str_replace(watershed, "W", ""))
 combined_data <- sqldf(
   "SELECT a.DATE as obs_date, a.watershed,
               A.precip as precip,
@@ -89,7 +91,6 @@ combined_snow_data <- sqldf(
   order by a.DATE
   "
 )
-
 total_data <- sqldf(
   "SELECT a.obs_date as obs_date, a.watershed,
               a.precip as precip,
@@ -106,11 +107,7 @@ total_data <- sqldf(
        AND a.precip IS NOT NULL
        ORDER BY a.obs_date"
 )
-
-
 total_data$baseflow <- BaseflowSeparation(total_data$streamflow)$bt
-
-
 total_data[,c('yr', 'mo', 'da', 'wk')] <- cbind(year(as.Date(total_data$obs_date)),
                                                 month(as.Date(total_data$obs_date)),
                                                 day(as.Date(total_data$obs_date)),
@@ -118,41 +115,37 @@ total_data[,c('yr', 'mo', 'da', 'wk')] <- cbind(year(as.Date(total_data$obs_date
 monthly_data <- total_data |> group_by(watershed,yr,mo) |> 
   summarise(total_precip = mean(precip,na.rm = TRUE), 
             total_streamflow = mean(streamflow,na.rm = TRUE), 
-            precip_divided_streamflow = (sum(precip,na.rm = TRUE)/sum(streamflow,na.rm = TRUE)),
+            streamflow_divided_precip = (sum(streamflow,na.rm = TRUE)/sum(precip,na.rm = TRUE)),
             obs_date = first(obs_date),
-            avg_snow_depth = mean(snow_depth,, na.rm = TRUE))
-weekly_data <- total_data |> group_by(watershed,yr,wk,mo) |> 
-  summarise(total_precip = mean(precip,na.rm = TRUE), 
-            total_streamflow = mean(streamflow,na.rm = TRUE), 
-            precip_divided_streamflow = (sum(precip,na.rm = TRUE)/sum(streamflow,na.rm = TRUE)),
-            obs_date = first(obs_date),
-            avg_snow_depth = mean(snow_depth,, na.rm = TRUE))
-
+            avg_snow_depth = mean(swe,, na.rm = TRUE))
 heatmap <- total_data |> mutate(year = as.numeric(yr),
                                 day_of_year = as.numeric(mo) * 30 + as.numeric(da))
-
 water_year_days <- c(
   seq.Date(as.Date("2000-10-01"), as.Date("2000-12-31"), by = "day"),
   seq.Date(as.Date("2000-01-01"), as.Date("2000-09-30"), by = "day")
 )
-year_data <- total_data |> mutate(obs_date = as.Date(obs_date),
-                                  Date = as.Date(obs_date))
-year_data <- addWaterYear(year_data)
-
-year_data <- year_data %>%
-  group_by(yr, da, mo, watershed) %>%
-  mutate(precip_divided_by_discharge = sum(precip, na.rm = TRUE) / sum(streamflow, na.rm = TRUE)) %>%
-  ungroup() %>%
+year_data <- total_data %>%
+  mutate(obs_date = as.Date(obs_date)) %>%
+  mutate(Date = as.Date(obs_date)) %>%
+  addWaterYear() %>%
   mutate(
-    obs_date = as.Date(obs_date),      # ensure obs_date is Date
     water_doy = case_when(
       month(obs_date) >= 10 ~ yday(obs_date) - yday(as.Date(paste0(year(obs_date), "-10-01"))) + 1,
-      TRUE ~ yday(obs_date) + (365 - yday(as.Date(paste0(year(obs_date) - 1, "-09-30"))))
+      TRUE                  ~ yday(obs_date) + (365 - yday(as.Date(paste0(year(obs_date)-1, "-09-30"))))
     )
-  )
+  ) %>%
+  group_by(waterYear, water_doy, watershed) %>%
+  mutate(
+    snow_depth = mean(swe,, na.rm = TRUE),
+    sum_streamflow_calc = sum(streamflow[precip > 0], na.rm = TRUE),
+    sum_precip_calc     = sum(precip[precip > 0],    na.rm = TRUE),
+    discharge_divided_by_precip = ifelse(sum_precip_calc > 0,
+                                         sum_streamflow_calc / sum_precip_calc,
+                                         NA)
+  ) %>%
+  ungroup()
 
-
-
+#This sets up our UI
 ui <- navbarPage("Hubbard Brook Watershed Data Analysis", theme = shinytheme("cerulean"),
                  tabPanel("Trend Analysis",
                           fluidPage(
@@ -187,13 +180,13 @@ overflow-y:scroll; background: ghostwhite;}")),
                                 checkboxInput("addprecip", "Add Precip Data", value = FALSE),
                                 checkboxInput("addstreamflow", "Add Streamflow Data", value = FALSE),
                                 checkboxInput("addsnow", "Add Snow Levels Data", value = FALSE),
-                                checkboxInput("addprecipdischarge", "Add P/Q Data", value = FALSE),
+                                checkboxInput("addprecipdischarge", "Add Q/P Data", value = FALSE),
                                 checkboxInput("addtrendline", "Add Trendline", value = FALSE),
                                 numericInput("ci_level", "Confidence Interval Level (Between 0 and 1)", value = 0.95, min = 0, max = 1, step = 0.01),
                                 selectInput("trend_var", "Select Trend Variable", choices = c("Precip" = "total_precip", 
                                                                                               "Streamflow" = "total_streamflow", 
                                                                                               "Snow Depth"= "avg_snow_depth", 
-                                                                                              "Precipitation/Streamflow" = "precip_divided_streamflow")),
+                                                                                              "Streamflow/Precipitation" = "streamflow_divided_precip")),
                                 selectInput("single_watershed", "Select One Watershed:", choices = as.character(1:9), selected = "1"),  # NEW
                                 sliderInput("zoom_monthly", "Select Date Range:",  # NEW
                                             min = as.Date("1956-01-01"), max = as.Date("2023-12-31"), 
@@ -251,10 +244,7 @@ overflow-y:scroll; background: ghostwhite;}")),
                               checkboxInput("addyearlyprecip", "Add Precip Data", FALSE),
                               checkboxInput("addyearlystreamflow", "Add Streamflow Data", FALSE),
                               checkboxInput("addyearlysnow", "Add Snow Levels Data", FALSE),
-                              checkboxInput("addyearlyprecipdischarge", "Add P/Q Data", FALSE),
-                              # checkboxInput("addyearlytrendline", "Add Trendline", FALSE),
-                              # selectInput("yearlytrend_var", "Select Trend Variable:", choices = c("Precip" = "precip", "Streamflow" = "streamflow", "Snow Depth" = "snow_depth", "Precipitation/Streamflow" = "precip_divided_by_discharge")),
-                              verbatimTextOutput("year_model_stats")
+                             verbatimTextOutput("year_model_stats")
                             ),
                             mainPanel(
                               plotOutput(
@@ -262,39 +252,12 @@ overflow-y:scroll; background: ghostwhite;}")),
                             )
                           )
                  ),
-                 #                  tabPanel("Rolling Averages",
-                 #                           sidebarLayout(
-                 #                             sidebarPanel(
-                 #                               verbatimTextOutput(
-                 #                                 "plotlyinfo"
-                 #                               ),
-                 #                               tags$head(tags$style("#plotlyinfo{color:black; font-size:8px; font-style:italic; 
-                 # overflow-y:scroll; 50px; background: ghostwhite;}")),
-                 #                               numericInput("rollingWindow", "Rolling Average (Days):", value = 1, min = 1, max = 365),
-                 #                               actionButton("applyRolling", "Apply"),
-                 #                               verbatimTextOutput(
-                 #                                 "rolling_avg_info"
-                 #                               ),
-                 #                               tags$head(tags$style("#rolling_avg_info{color:black; font-size:10px; font-style:italic; 
-                 # overflow-y:scroll; background: ghostwhite;}")),
-                 #                             ),
-                 #            mainPanel(
-                 #              plotOutput("rollingPlot"),
-                 #              sliderInput("zoom_rolling", "Zoom Rolling Average Plot:", 
-                 #                          min = as.Date("1956-01-01"), max = as.Date("2023-12-31"), 
-                 #                          value = c(as.Date("1956-01-01"), as.Date("2023-12-31")),
-                 #                          timeFormat = "%Y-%m-%d", width = "100%"),
-                 #              plotOutput("monthlyGraph") # New graph added below rolling average graph
-                 #            )
-                 #          )
-                 # ),
                  tabPanel("See Tables",
                           sidebarLayout(
                             sidebarPanel(
                               selectInput("download_table", "Select the Table to Download", choices = c("Total Data" = "total_data", 
                                                                                                         "Filtered Data" = "filtered_dataset", 
                                                                                                         "Aggregated_data"= "aggregated_data", 
-                                                                                                        "Weekly Data" = "weekly_data",
                                                                                                         "Monthly Data" = "monthly_data")),
                               downloadButton("downloadData", "Download Current Data")),
                             mainPanel(DTOutput("dataTable"))
@@ -320,14 +283,14 @@ overflow-y:scroll; background: ghostwhite;}")),
                             p("The Monthly and Weekly Analysis tab explores seasonal variations in streamflow and compare month-to-month changes.
                               This tab is particularly useful for looking at specific months and better understand the trends involved,
                               allowing you to see how the values have changed over the years. On the sidebar, you can select whether you want to look at 
-                              months or weeks, and add lines for precipitation, streamflow, snow levels, and P/Q. Please note that you must select
+                              months or weeks, and add lines for precipitation, streamflow, snow levels, and Q/P. Please note that you must select
                               a line in order for the plots to appear. Also important to note is that unlike the Trend Analysis tab, 
                               you can only view the data for one watershed at a time. The date range can be adjusted using the slider at the bottom of the sidebar."),
                             
                             h2("Yearly Analysis"),
                             p("The Yearly Analysis tab provides a focused view of hydrologic data across entire water years (October 1st to September 30th), 
                             allowing you to explore seasonal patterns and year-to-year variability. This tab is ideal for examining how precipitation, streamflow, 
-                            snow levels, and the precipitation-to-streamflow ratio (P/Q) vary across individual years. Using the sidebar, 
+                            snow levels, and the Streamflow-to-Precipitation ratio (Q/P) vary across individual years. Using the sidebar, 
                             you can select a specific watershed and narrow the water-year range of interest. You can also choose which data variables to display. 
                             Each year is shown in a separate panel, enabling clear visual comparison. 
                             Note that you must select at least one variable (e.g., precipitation, streamflow) for the plot to render."),
@@ -348,37 +311,31 @@ overflow-y:scroll; background: ghostwhite;}")),
 
 
 
-
-
-
-
+#This sets up our functions
 server <- function(input, output, session) {
   options(shiny.maxRequestSize = 30 * 1024^2)
-  rollingWindowVal <- reactiveVal(1)
-  observe({
-    req(input$rollingWindow)  # Ensure input exists
-    rollingWindowVal(input$rollingWindow)
-  })
+  #Sets up our filtered dataset for the precipitation and streamflow graphs
   filtered_dataset <- reactive({
     total_data %>%
       filter(obs_date >= input$zoom_trend[1] & obs_date <= input$zoom_trend[2] &
                watershed %in% input$watersheds)
   })
-  
+  #sets up our daily totatl data
   aggregated_data <- reactive({
     filtered_dataset() %>%
       group_by(obs_date) %>%
       summarize(total_precip = sum(precip, na.rm = TRUE), total_flow = sum(streamflow,na.rm=TRUE)) %>%
       left_join(filtered_dataset(), by = "obs_date")
   })
-  
+  #sets up the date range
   output$dateRangeText <- renderText({
     paste(input$zoom_range[1], "to", input$zoom_range[2])
   })
-  
+  #sets up the record period statistics
   output$recordPeriod <- renderText({
     paste(input$zoom_trend[1], "to", input$zoom_trend[2])
   })
+  #sets upt he method to download our data
   output$downloadData <- downloadHandler(
     filename = function() {
       table <- input$download_table
@@ -390,8 +347,6 @@ server <- function(input, output, session) {
         write.csv(total_data, file, row.names = FALSE)
       } else if (table == "aggregated_data") {
         write.csv(aggregated_data(), file, row.names = FALSE)
-      } else if (table == "weekly_data") {
-        write.csv(weekly_data, file, row.names = FALSE)
       } else if (table == "filtered_dataset") {
         write.csv(filtered_dataset(), file, row.names = FALSE)
       } else if (table == "monthly_data") {
@@ -401,12 +356,13 @@ server <- function(input, output, session) {
       }
     }
   )
-  
+  #renders statistics about the selected data range
   output$totalDays <- renderText({ n_distinct(filtered_dataset()$obs_date) })
   output$missingDays <- renderText({ sum(filtered_dataset()$flag == 1, na.rm = TRUE) })
   output$avgDischarge <- renderText({ mean(filtered_dataset()$streamflow, na.rm = TRUE) })
   output$medianDischarge <- renderText({ median(filtered_dataset()$streamflow, na.rm = TRUE) })
   
+  #Output our precip plot
   output$precipplot <- renderPlot({
     df <- aggregated_data() %>%
       filter(obs_date >= input$zoom_trend[1] & obs_date <= input$zoom_trend[2])
@@ -418,8 +374,10 @@ server <- function(input, output, session) {
       scale_y_reverse(position = "right", limits = c(200, 0), 
                       breaks = c(0, 25, 50, 100,150), labels = c(0, 25, 50, 100,150), expand = c(0, 0)) +
       labs(y = "Precipitation (mm/day)", x = "") +
-      theme_minimal()
+      scale_x_date(date_labels = "%Y", date_breaks = "10 years") +
+      theme_classic()
   })
+  #output our Streamflow and Baseflow plots
   output$trendPlot <- renderPlot({
     df <- aggregated_data() %>%
       filter(obs_date >= input$zoom_trend[1] & obs_date <= input$zoom_trend[2]) 
@@ -444,57 +402,7 @@ server <- function(input, output, session) {
     }
     p
   })
-  
-  rolling_avg_data <- reactive({
-    df <- aggregated_data()  # Ensure this function exists and returns data
-    req(df)  # Ensure df is available
-    # Apply zoom filter based on date range
-    
-    df <- df %>% filter(as.Date(obs_date) >= as.Date(input$zoom_rolling[1]), 
-                        as.Date(obs_date) <= as.Date(input$zoom_rolling[2]))
-    
-    df <- df %>%
-      group_by(watershed) %>%
-      mutate(rolling_avg = zoo::rollmean(streamflow, k = rollingWindowVal(), fill = NA, align = "right")) %>%
-      ungroup()
-    
-    df
-  })
-  
-  # Render the plot
-  output$rollingPlot <- renderPlot({
-    df <- rolling_avg_data()
-    req(nrow(df) > 0)  # Ensure there's data to plot
-    df$obs_date <- as.Date(df$obs_date)
-    ggplot(df, aes(x = obs_date, y = rolling_avg, color = watershed)) +
-      geom_line() +
-      labs(title = paste0(rollingWindowVal(), "-Day Rolling Average"),
-           x = "Date", y = "Streamflow (mm/day)") +
-      theme_minimal()
-  })
-  
-  output$monthlyGraph <- renderPlot({
-    colors <- c("Average Precipitation per day" = "steelblue", "Average Streamflow per day" = "orangered")
-    
-    df <- filtered_dataset() %>%
-      group_by(mo) %>%
-      summarise(avgprecip = mean(precip, na.rm = TRUE), avgstreamflow = mean(streamflow, na.rm = TRUE))
-    
-    ggplot(df) +
-      geom_col(aes(x = mo, y = avgprecip, fill = "Average Precipitation per day")) +
-      geom_line(aes(x = mo, y = avgstreamflow, color = "Average Streamflow per day")) +
-      theme_classic() +
-      labs(title = "Average Precipitation and Average Streamflow by Month",
-           y = "Average Flow and Precip (mm/Day)",
-           x = "Month",
-           color = "Legend") +
-      theme(axis.title.y.left = element_text(hjust = 0),
-            legend.position = "bottom",
-            legend.justification = c(0.25, 0.5),
-            legend.title = element_blank()) +
-      scale_color_manual(values = colors) +
-      scale_fill_manual(values = colors)
-  })
+#output our data as a table
   output$dataTable <- renderDT({
     table <- input$download_table
     if (table == "total_data") {
@@ -503,9 +411,6 @@ server <- function(input, output, session) {
     else if (table == "aggregated_data") {
       datatable(aggregated_data(), options = list(pageLength = 10))
     }
-    else if (table == "weekly_data") {
-      datatable(weekly_data, options = list(pageLength = 10))
-    }
     else if (table == "filtered_dataset") {
       datatable(filtered_dataset(), options = list(pageLength = 10))
     }
@@ -513,7 +418,7 @@ server <- function(input, output, session) {
       datatable(monthly_data, options = list(pageLength = 10))
     }
   })
-  
+  #output our heatmap plots
   output$heatmap <- renderPlot({
     df <- heatmap %>%
       filter(obs_date >= input$heatmap_rolling[1] & obs_date <= input$heatmap_rolling[2]) %>%
@@ -576,41 +481,13 @@ server <- function(input, output, session) {
            x = "Day of Year", y = "Year", fill = "Event Rank") +
       theme_minimal()
   })
-  
-  rolling_avg_data <- reactive({
-    df <- aggregated_data()  # Ensure this function exists and returns data
-    req(df)  # Ensure df is available
-    # Apply zoom filter based on date range
-    
-    df <- df %>% filter(as.Date(obs_date) >= as.Date(input$zoom_rolling[1]), 
-                        as.Date(obs_date) <= as.Date(input$zoom_rolling[2]))
-    
-    df <- df %>%
-      group_by(watershed) %>%
-      mutate(rolling_avg = zoo::rollmean(streamflow, k = rollingWindowVal(), fill = NA, align = "right")) %>%
-      ungroup()
-    
-    df
-  })
-  output$rolling_avg_info <- renderPrint({
-    cat("These Graphs use the same
-date range and watersheds as 
-selected on the trend analysis panel")})
-  output$plotlyinfo <- renderPrint({
-    cat("TO ZOOM: On the streamflow plot, 
-click and drag and then double click. 
-Double click again to zoom to full extent.")}
-  )
-  output$plotlyinfo2 <- renderPrint({
-    cat("TO ZOOM: On the streamflow plot, 
-click and drag and then double click. 
-Double click again to zoom to full extent.")}
-  )
+#output the monthly summary plots
   output$monthly_summary <- renderPlot({
     
     df <- monthly_data |> 
       filter(obs_date >= input$zoom_monthly[1] & obs_date <= input$zoom_monthly[2] &
-               watershed == input$single_watershed) |> filter(total_streamflow != 0)
+               watershed == input$single_watershed) |> filter(total_streamflow != 0)|> 
+      filter(avg_snow_depth != -99)
     
     p <- ggplot(df, aes(x = as.Date(obs_date))) +
       scale_y_continuous(name = "(mm/day)", sec.axis = sec_axis(~ ., name = "(mm/day)")) +
@@ -632,7 +509,7 @@ Double click again to zoom to full extent.")}
       p <- p + geom_point(aes(y = avg_snow_depth, color = "Snow Depth"), na.rm = TRUE)
     }
     if (input$addprecipdischarge) {
-      p <- p + geom_point(aes(y = precip_divided_streamflow, color = "Precip/Streamflow"))
+      p <- p + geom_point(aes(y = streamflow_divided_precip, color = "Streamflow/Precip"))
     }
     
     if (input$addtrendline) {
@@ -708,40 +585,13 @@ Double click again to zoom to full extent.")}
           filter(., water_doy >= days[1] | water_doy <= days[2])
         }
       }
-    
-    cat("▶ Rows after filtering:", nrow(df), "\n")
     df
-  })
-  
-  # 3) ARIMAX fit reactive (only runs when trendline is requested)
-  # trend_results <- reactive({
-  #   req(input$addyearlytrendline)
-  #   df <- filtered_year_data()
-  #   df <- df[order(df$obs_date), ]
-  #   
-  #   ts_data   <- ts(df[[input$yearlytrend_var]], frequency = 12)
-  #   exog_data <- as.numeric(df$obs_date)
-  #   
-  #   model <- auto.arima(ts_data, xreg = exog_data)
-  #   df$fitted_values <- fitted(model)
-  #   
-  #   residuals  <- df[[input$yearlytrend_var]] - df$fitted_values
-  #   r2         <- 1 - sum(residuals^2) /
-  #     sum((df[[input$yearlytrend_var]] - mean(df[[input$yearlytrend_var]]))^2)
-  #   
-  #   list(df = df, r_squared = r2)
-  # })
-  
-  # 4) Render R² text
-  output$year_model_stats <- renderText({
-    req(input$addyearlytrendline)
-    res <- trend_results()
-    paste0("R² = ", round(res$r_squared, 3))
   })
   
   # 5) Render the main plot
   output$yearly_summary <- renderPlot({
-    df <- filtered_year_data()
+    df <- filtered_year_data() |> 
+      filter(snow_depth != -99)
     req(nrow(df) > 0)
     
     p <- ggplot(df, aes(x = water_doy)) +
@@ -757,26 +607,22 @@ Double click again to zoom to full extent.")}
     
     # conditional layers
     if (isTRUE(input$addyearlyprecip)) {
-      p <- p + geom_point(aes(y = precip, color = "Precip"), data = df)
+      p <- p +
+        geom_bar(
+          aes(y    = precip,
+              fill = "Precip"),    # map your series to fill
+          data  = df,
+          stat  = "identity",     # use the y values directly
+          position = "identity"   # or "dodge" if you have multiple bars per x
+        )
     }
     if (isTRUE(input$addyearlystreamflow)) {
-      p <- p + geom_point(aes(y = streamflow, color = "Streamflow"), data = df)
+      p <- p + geom_line(aes(y = streamflow, color = "Streamflow"), data = df)
     }
     if (isTRUE(input$addyearlysnow)) {
-      p <- p + geom_point(aes(y = snow_depth, color = "Snow Depth"),
+      p <- p + geom_line(aes(y = snow_depth, color = "Snow Depth"),
                           na.rm = TRUE, data = df)
     }
-    if (isTRUE(input$addyearlyprecipdischarge)) {
-      p <- p + geom_point(aes(y = precip_divided_by_discharge,
-                              color = "Precip/Streamflow"),
-                          data = df)
-    }
-    # # add trendline if selected
-    # if (isTRUE(input$addyearlytrendline)) {
-    #   res <- trend_results()
-    #   p <- p + geom_line(aes(x = water_doy, y = fitted_values, color = "Trendline"),
-    #                      size = 1, data = res$df)
-    # }
     
     p
   })
