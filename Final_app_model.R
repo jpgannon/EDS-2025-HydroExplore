@@ -244,7 +244,7 @@ overflow-y:scroll; background: ghostwhite;}")),
                               checkboxInput("addyearlyprecip", "Add Precip Data", FALSE),
                               checkboxInput("addyearlystreamflow", "Add Streamflow Data", FALSE),
                               checkboxInput("addyearlysnow", "Add Snow Levels Data", FALSE),
-                             verbatimTextOutput("year_model_stats")
+                              verbatimTextOutput("year_model_stats")
                             ),
                             mainPanel(
                               plotOutput(
@@ -402,7 +402,7 @@ server <- function(input, output, session) {
     }
     p
   })
-#output our data as a table
+  #output our data as a table
   output$dataTable <- renderDT({
     table <- input$download_table
     if (table == "total_data") {
@@ -481,7 +481,7 @@ server <- function(input, output, session) {
            x = "Day of Year", y = "Year", fill = "Event Rank") +
       theme_minimal()
   })
-#output the monthly summary plots
+  #output the monthly summary plots
   output$monthly_summary <- renderPlot({
     
     df <- monthly_data |> 
@@ -621,7 +621,7 @@ server <- function(input, output, session) {
     }
     if (isTRUE(input$addyearlysnow)) {
       p <- p + geom_line(aes(y = snow_depth, color = "Snow Depth"),
-                          na.rm = TRUE, data = df)
+                         na.rm = TRUE, data = df)
     }
     
     p
