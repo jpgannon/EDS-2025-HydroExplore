@@ -301,7 +301,11 @@ overflow-y:scroll; background: ghostwhite;}")),
                             p("Here you can examine and download the data that is used in the app. 
                               Important to note is that the dataset matches the selections made in the other tabs, so the watersheds and date ranges that were selected
                               in the Trend Analysis tab will show up here. This allows you to use the data generated from this app for your own purposes, 
-                              Hubbard Brook doesn’t offer a combined precipitation, snowfall, and streamflow dataset for example, so this is an easy way to get this data.")
+                              Hubbard Brook doesn’t offer a combined precipitation, snowfall, and streamflow dataset for example, so this is an easy way to get this data."),
+                            h2("Snow Data Explanation"),
+                            p("A couple of the watersheds lack or have partial snow data. While watersheds 1, 6, and 8 have snow data for the full time span. Watersheds
+                              2, 5, and 9 have no snow data, and watersheds 3, 4, and 7 only have data until 1980. We're not sure why this is, but it is something that exists
+                              in our original data.")
                           ),
                           
                  )
