@@ -1,18 +1,18 @@
 Project Name:
 
-Description/Overview:
+Description/Overview (Michael):
 
-Purpose/Goals:
+Purpose/Goals(Humzah):
 
-Link to Used Data:
+Link to Used Data(Owen):
 
-Key Functions/Features:
+Key Functions/Features(Michael):
 
-How it works (Methods):
+How it works (Methods)(Humzah):
 
-How to Install Application & Languages Uses:
+How to Install Application & Languages Used(Owen):
 Screenshot of Ideal Conditions/Outputs 
 
-Known Issues:
+Known Issues(Michael):
 
-Contact Info/Author:
+Contact Info/Author(Humzah):
