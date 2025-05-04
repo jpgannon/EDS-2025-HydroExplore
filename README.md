@@ -142,6 +142,20 @@ Start on the **User Guide** tab to get oriented. Then:
 
 ---
 
+
+<details>
+  <summary>Click to view all app screenshots</summary>
+
+  ![Home Page](images/homepage.png)
+
+  ![Trend Analysis](images/trend_analysis.png)
+
+  ![Monthly Analysis](images/monthly_analysis.png)
+
+  ![Heatmap Analysis](images/heatmap_analysis.png)
+
+</details>
+
 ## Known Issues
 
 - **Snow data is incomplete** for several watersheds:
