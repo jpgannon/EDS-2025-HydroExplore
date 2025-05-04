@@ -144,15 +144,15 @@ Start on the **User Guide** tab to get oriented. Then:
 
 
 <details>
-  <summary>Click to view all app screenshots</summary>
+  <summary>Click to view what the app should look like</summary>
 
-  ![Home Page](images/homepage.png)
+  ![Trend Analysis](https://github.com/user-attachments/assets/8e48023f-7e8f-41bc-a5ad-239538f1003b)
 
-  ![Trend Analysis](images/trend_analysis.png)
+  ![Monthly Analysis](https://github.com/user-attachments/assets/3b6b10a2-8af8-4086-bcf7-0feb81717a8a)
 
-  ![Monthly Analysis](images/monthly_analysis.png)
+  ![Heatmap Analysis](https://github.com/user-attachments/assets/d92788e4-a099-4dfa-b408-834719d2b637)
 
-  ![Heatmap Analysis](images/heatmap_analysis.png)
+  ![Yearly Analysis](https://github.com/user-attachments/assets/0f6d9c0c-25ae-4cb1-a95d-73b9ff5975de)
 
 </details>
 
