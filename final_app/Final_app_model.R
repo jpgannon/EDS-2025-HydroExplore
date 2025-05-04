@@ -179,7 +179,6 @@ overflow-y:scroll; background: ghostwhite;}")),
                                 checkboxInput("addsnow", "Add Snow Levels Data", value = FALSE),
                                 checkboxInput("addprecipdischarge", "Add Q/P Data", value = FALSE),
                                 checkboxInput("addtrendline", "Add Trendline", value = FALSE),
-                                numericInput("ci_level", "Confidence Interval Level (Between 0 and 1)", value = 0.95, min = 0, max = 1, step = 0.01),
                                 selectInput("trend_var", "Select Trend Variable", choices = c("Precip" = "total_precip", 
                                                                                               "Streamflow" = "total_streamflow", 
                                                                                               "Snow Depth"= "avg_snow_depth", 
@@ -188,8 +187,7 @@ overflow-y:scroll; background: ghostwhite;}")),
                                 sliderInput("zoom_monthly", "Select Date Range:",  # NEW
                                             min = as.Date("1956-01-01"), max = as.Date("2023-12-31"), 
                                             value = c(as.Date("1956-01-01"), as.Date("2023-12-31")),
-                                            timeFormat = "%Y-%m-%d", width = "100%"),
-                                verbatimTextOutput("model_stats")
+                                            timeFormat = "%Y-%m-%d", width = "100%")
                               ),
                               mainPanel(
                                 fluidRow(
@@ -211,9 +209,7 @@ overflow-y:scroll; background: ghostwhite;}")),
                                             value = c(as.Date("1956-01-01"), as.Date("2023-12-31")),
                                             timeFormat = "%Y-%m-%d", width = "100%"),
                                 sliderInput("num_highflow_days", "Select Number of Highest Flow Days:",
-                                            min = 1, max = 1000, value = 1),
-                                
-                                verbatimTextOutput("model_stats")
+                                            min = 1, max = 1000, value = 1)
                               ),
                               mainPanel(
                                 fluidRow(
@@ -240,8 +236,7 @@ overflow-y:scroll; background: ghostwhite;}")),
                               selectInput("yearlysingle_watershed", "Select One Watershed:", choices = sort(unique(year_data$watershed))),
                               checkboxInput("addyearlyprecip", "Add Precip Data", FALSE),
                               checkboxInput("addyearlystreamflow", "Add Streamflow Data", FALSE),
-                              checkboxInput("addyearlysnow", "Add Snow Levels Data", FALSE),
-                              verbatimTextOutput("year_model_stats")
+                              checkboxInput("addyearlysnow", "Add Snow Levels Data", FALSE)
                             ),
                             mainPanel(
                               plotOutput(
@@ -302,6 +297,7 @@ overflow-y:scroll; background: ghostwhite;}")),
                               Important to note is that the dataset matches the selections made in the other tabs, so the watersheds and date ranges that were selected
                               in the Trend Analysis tab will show up here. This allows you to use the data generated from this app for your own purposes, 
                               Hubbard Brook doesn’t offer a combined precipitation, snowfall, and streamflow dataset for example, so this is an easy way to get this data."),
+                            
                             h2("Snow Data Explanation"),
                             p("A couple of the watersheds lack or have partial snow data. While watersheds 1, 6, and 8 have snow data for the full time span. Watersheds
                               2, 5, and 9 have no snow data, and watersheds 3, 4, and 7 only have data until 1980. We're not sure why this is, but it is something that exists
