@@ -138,7 +138,7 @@ Start on the **User Guide** tab to get oriented. Then:
 1. Choose your variable(s) and watershed(s).
 2. Select a date range.
 3. Dive into visualizations.
-4. Download tables or graphs as needed.
+4. Download tables as needed.
 
 ---
 
