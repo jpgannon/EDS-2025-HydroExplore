@@ -10,7 +10,7 @@ The **HydroExplore** app was developed to help analyze **precipitation and strea
 
 - Detect high and low flow events, and snowfall changes over time.
 - Easily explore data across all nine watersheds at Hubbard Brook.
-- Gain insights whether you're a scientist, student, or just curious—no affiliation required!
+- Gain insights whether you're a scientist, student, or just curious!
 
 A core goal of the app is to highlight watershed differences, providing a simple yet powerful platform for hydrological exploration.
 
