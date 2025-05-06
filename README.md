@@ -128,7 +128,7 @@ Below are several standout components of HydroExplore that make it especially ef
 ### Water Year Analysis
 
 - Adjusted year range (October to September) for hydrologic accuracy.
-- Especially useful for snow data—view full snowpack and melt cycles clearly.
+- Especially useful for snow data—view snowpack and melt cycles.
 - Easily compare multiple water years side-by-side.
 
 ---
@@ -164,6 +164,7 @@ webshot2::install_phantomjs()
 ```
 This will install the packages and dependencies our code relies on
 - Step 5: Run the app, you should be able to do this by pressing the Run App button at the top or highlighting all of the code and pressing (Command + Return on Mac or ctrl + enter on Windows).
+
 ---
 
 
