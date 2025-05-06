@@ -15,6 +15,20 @@ The **HydroExplore** app was developed to help analyze **precipitation and strea
 A core goal of the app is to highlight watershed differences, providing a simple yet powerful platform for hydrological exploration.
 
 ---
+## Data We Used
+
+Our data comes from the Hubbard Brook Experimental Forest's nine experimental watersheds. We used their **daily streamflow**, **daily precipitation**, and **weekly snow depth** data, spanning from 1956 to 2023.
+
+<details>
+  <summary>Click to view data sources</summary>
+
+  - [Daily Streamflow Data](https://portal.edirepository.org/nis/mapbrowse?packageid=knb-lter-hbr.2.14)
+  - [Daily Precipitation Data](https://portal.edirepository.org/nis/mapbrowse?packageid=knb-lter-hbr.14.19)
+  - [Weekly Snow Depth Data](https://portal.edirepository.org/nis/mapbrowse?packageid=knb-lter-hbr.27.20 )
+
+</details>
+
+---
 
 ## Description & Overview
 
@@ -133,13 +147,23 @@ Each tab presents the data through a different lens, enabling users to interact,
 
 ## How to Use It
 
-Start on the **User Guide** tab to get oriented. Then:
-
-1. Choose your variable(s) and watershed(s).
-2. Select a date range.
-3. Dive into visualizations.
-4. Download tables as needed.
-
+- Step 1: Download the Final_app.zip
+- Step 2: Uncompress the folder
+- Step 3: Open Final_app_model.R
+- Step 4: Run this line of code 
+```R
+install.packages(c(
+  "shiny", "sqldf", "tidyverse", "shinythemes", "DT", "plotly", 
+  "zoo", "stringr", "dplyr", "lubridate", "grwat", "ggplot2", 
+  "xts", "hrbrthemes", "socviz", "geofacet", "usmap", "ggmap", 
+  "cowplot", "gridExtra", "webshot2", "kableExtra", 
+  "RColorBrewer", "forecast", "nlme", "mgcv", 
+  "dataRetrieval", "shinyWidgets"
+))
+webshot2::install_phantomjs()
+```
+This will install the packages and dependencies our code relies on
+- Step 5: Run the app, you should be able to do this by pressing the Run App button at the top or highlighting all of the code and pressing (Command + Return on Mac or ctrl + enter on Windows).
 ---
 
 
